@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cellular Calendar</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: #0a0a0a;
+            color: #e0e0e0;
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        #canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+
+        #interface {
+            position: relative;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        #controls {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(20, 20, 20, 0.9);
+            padding: 20px;
+            border: 1px solid #333;
+            border-radius: 4px;
+            pointer-events: all;
+            max-width: 300px;
+        }
+
+        button {
+            background: #1a1a1a;
+            border: 1px solid #444;
+            color: #e0e0e0;
+            padding: 8px 16px;
+            cursor: pointer;
+            border-radius: 3px;
+            font-family: inherit;
+            font-size: 12px;
+            margin: 5px 5px 5px 0;
+        }
+
+        button:hover {
+            background: #2a2a2a;
+            border-color: #666;
+        }
+
+        button.active {
+            background: #2d4a2d;
+            border-color: #4a7c4a;
+        }
+
+        .cell {
+            position: absolute;
+            border: 2px solid;
+            border-radius: 50%;
+            cursor: move;
+            transition: all 0.2s ease;
+            pointer-events: all;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            text-align: center;
+            padding: 8px;
+            backdrop-filter: blur(4px);
+        }
+
+        .cell:hover {
+            transform: scale(1.05);
+            z-index: 100;
+        }
+
+        .cell.selected {
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+            z-index: 101;
+        }
+
+        .cell-label {
+            word-wrap: break-word;
+            overflow: hidden;
+            max-height: 100%;
+            line-height: 1.2;
+        }
+
+        #editPanel {
+            position: fixed;
+            right: 20px;
+            top: 20px;
+            width: 350px;
+            background: rgba(20, 20, 20, 0.95);
+            border: 1px solid #333;
+            padding: 20px;
+            border-radius: 4px;
+            display: none;
+            pointer-events: all;
+            max-height: calc(100vh - 40px);
+            overflow-y: auto;
+        }
+
+        #editPanel.visible {
+            display: block;
+        }
+
+        label {
+            display: block;
+            margin-top: 12px;
+            margin-bottom: 4px;
+            font-size: 11px;
+            color: #999;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        textarea,
+        select {
+            width: 100%;
+            background: #1a1a1a;
+            border: 1px solid #444;
+            color: #e0e0e0;
+            padding: 8px;
+            border-radius: 3px;
+            font-family: inherit;
+            font-size: 12px;
+        }
+
+        textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+
+        input[type="color"] {
+            width: 100%;
+            height: 40px;
+            background: #1a1a1a;
+            border: 1px solid #444;
+            cursor: pointer;
+            border-radius: 3px;
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: transparent;
+            border: none;
+            color: #666;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+        }
+
+        .close-btn:hover {
+            color: #999;
+        }
+
+        .fodder-item {
+            background: #151515;
+            padding: 8px;
+            margin: 6px 0;
+            border-left: 2px solid #444;
+            font-size: 11px;
+            border-radius: 2px;
+        }
+
+        .fodder-input {
+            display: flex;
+            gap: 6px;
+            margin-top: 8px;
+        }
+
+        .fodder-input input {
+            flex: 1;
+        }
+
+        .fodder-input button {
+            margin: 0;
+        }
+
+        #info {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(20, 20, 20, 0.9);
+            padding: 12px 16px;
+            border: 1px solid #333;
+            border-radius: 4px;
+            font-size: 11px;
+            color: #666;
+            pointer-events: none;
+        }
+
+        .connection-indicator {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(20, 20, 20, 0.9);
+            padding: 12px 16px;
+            border: 1px solid #333;
+            border-radius: 4px;
+            font-size: 11px;
+            color: #4a7c4a;
+            display: none;
+            pointer-events: none;
+        }
+
+        .connection-indicator.visible {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    
+    <div id="interface">
+        <div id="controls">
+            <h3 style="margin-bottom: 12px; font-size: 14px;">Cellular Calendar</h3>
+            <button id="addCell">+ New Cell</button>
+            <button id="connectMode">Connect Cells</button>
+            <button id="clearConnections">Clear Connections</button>
+        </div>
+
+        <div id="editPanel">
+            <button class="close-btn" id="closePanel">×</button>
+            <h3 style="margin-bottom: 16px; font-size: 14px;">Cell Editor</h3>
+            
+            <label>Intention</label>
+            <input type="text" id="cellIntention" placeholder="What is this cell's purpose?">
+            
+            <label>Timespan</label>
+            <div style="display: flex; gap: 8px;">
+                <input type="number" id="cellTimespan" min="1" value="7" style="flex: 1;">
+                <select id="cellTimespanUnit" style="flex: 0 0 100px;">
+                    <option value="days">days</option>
+                    <option value="weeks">weeks</option>
+                    <option value="months">months</option>
+                    <option value="years">years</option>
+                </select>
+            </div>
+            
+            <label>Membrane Color</label>
+            <input type="color" id="cellColor" value="#4a7c4a">
+            
+            <label>Size</label>
+            <input type="range" id="cellSize" min="80" max="200" value="120">
+            
+            <label>Fodder (resources, notes, materials)</label>
+            <div id="fodderList"></div>
+            <div class="fodder-input">
+                <input type="text" id="newFodder" placeholder="Add fodder...">
+                <button id="addFodder">+</button>
+            </div>
+            
+            <button id="deleteCell" style="margin-top: 20px; background: #4a2d2d; border-color: #7c4a4a;">Delete Cell</button>
+        </div>
+
+        <div id="info">
+            Click "New Cell" to begin · Drag cells to arrange · Click cell to edit · Connect mode for matrix fibers
+        </div>
+
+        <div id="connectionIndicator" class="connection-indicator">
+            Connecting mode active · Click two cells to create matrix fiber
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Set canvas size
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        // State
+        let cells = [];
+        let connections = [];
+        let selectedCell = null;
+        let draggedCell = null;
+        let connectMode = false;
+        let connectingFrom = null;
+        let nextId = 1;
+
+        // Cell class
+        class Cell {
+            constructor(x, y) {
+                this.id = nextId++;
+                this.x = x;
+                this.y = y;
+                this.intention = 'Unnamed Cell';
+                this.timespan = 7;
+                this.timespanUnit = 'days';
+                this.color = '#4a7c4a';
+                this.size = 120;
+                this.fodder = [];
+                this.element = this.createElement();
+            }
+
+            createElement() {
+                const el = document.createElement('div');
+                el.className = 'cell';
+                el.style.left = (this.x - this.size/2) + 'px';
+                el.style.top = (this.y - this.size/2) + 'px';
+                el.style.width = this.size + 'px';
+                el.style.height = this.size + 'px';
+                el.style.borderColor = this.color;
+                el.style.backgroundColor = this.color + '22';
+                
+                const label = document.createElement('div');
+                label.className = 'cell-label';
+                label.textContent = this.intention;
+                el.appendChild(label);
+                
+                document.getElementById('interface').appendChild(el);
+                
+                el.addEventListener('mousedown', (e) => {
+                    if (connectMode) {
+                        this.handleConnect();
+                    } else {
+                        this.startDrag(e);
+                    }
+                });
+                
+                el.addEventListener('click', (e) => {
+                    if (!connectMode) {
+                        e.stopPropagation();
+                        this.select();
+                    }
+                });
+                
+                return el;
+            }
+
+            update() {
+                this.element.style.left = (this.x - this.size/2) + 'px';
+                this.element.style.top = (this.y - this.size/2) + 'px';
+                this.element.style.width = this.size + 'px';
+                this.element.style.height = this.size + 'px';
+                this.element.style.borderColor = this.color;
+                this.element.style.backgroundColor = this.color + '22';
+                this.element.querySelector('.cell-label').textContent = this.intention;
+            }
+
+            startDrag(e) {
+                draggedCell = this;
+                const rect = this.element.getBoundingClientRect();
+                this.dragOffsetX = e.clientX - rect.left - this.size/2;
+                this.dragOffsetY = e.clientY - rect.top - this.size/2;
+            }
+
+            select() {
+                if (selectedCell) {
+                    selectedCell.element.classList.remove('selected');
+                }
+                selectedCell = this;
+                this.element.classList.add('selected');
+                openEditPanel(this);
+            }
+
+            handleConnect() {
+                if (!connectingFrom) {
+                    connectingFrom = this;
+                    this.element.style.boxShadow = '0 0 20px rgba(74, 124, 74, 0.8)';
+                } else if (connectingFrom !== this) {
+                    connections.push({ from: connectingFrom, to: this });
+                    connectingFrom.element.style.boxShadow = '';
+                    connectingFrom = null;
+                } else {
+                    connectingFrom.element.style.boxShadow = '';
+                    connectingFrom = null;
+                }
+            }
+
+            remove() {
+                this.element.remove();
+                cells = cells.filter(c => c !== this);
+                connections = connections.filter(conn => 
+                    conn.from !== this && conn.to !== this
+                );
+            }
+        }
+
+        // UI Functions
+        function openEditPanel(cell) {
+            document.getElementById('editPanel').classList.add('visible');
+            document.getElementById('cellIntention').value = cell.intention;
+            document.getElementById('cellTimespan').value = cell.timespan;
+            document.getElementById('cellTimespanUnit').value = cell.timespanUnit;
+            document.getElementById('cellColor').value = cell.color;
+            document.getElementById('cellSize').value = cell.size;
+            updateFodderList(cell);
+        }
+
+        function updateFodderList(cell) {
+            const list = document.getElementById('fodderList');
+            list.innerHTML = '';
+            cell.fodder.forEach((item, index) => {
+                const div = document.createElement('div');
+                div.className = 'fodder-item';
+                div.textContent = item;
+                div.addEventListener('click', () => {
+                    cell.fodder.splice(index, 1);
+                    updateFodderList(cell);
+                });
+                list.appendChild(div);
+            });
+        }
+
+        // Event Handlers
+        document.getElementById('addCell').addEventListener('click', () => {
+            const cell = new Cell(
+                window.innerWidth / 2 + (Math.random() - 0.5) * 200,
+                window.innerHeight / 2 + (Math.random() - 0.5) * 200
+            );
+            cells.push(cell);
+            cell.select();
+        });
+
+        document.getElementById('connectMode').addEventListener('click', (e) => {
+            connectMode = !connectMode;
+            e.target.classList.toggle('active');
+            document.getElementById('connectionIndicator').classList.toggle('visible');
+            if (!connectMode && connectingFrom) {
+                connectingFrom.element.style.boxShadow = '';
+                connectingFrom = null;
+            }
+        });
+
+        document.getElementById('clearConnections').addEventListener('click', () => {
+            connections = [];
+        });
+
+        document.getElementById('closePanel').addEventListener('click', () => {
+            document.getElementById('editPanel').classList.remove('visible');
+            if (selectedCell) {
+                selectedCell.element.classList.remove('selected');
+                selectedCell = null;
+            }
+        });
+
+        document.getElementById('cellIntention').addEventListener('input', (e) => {
+            if (selectedCell) {
+                selectedCell.intention = e.target.value;
+                selectedCell.update();
+            }
+        });
+
+        document.getElementById('cellTimespan').addEventListener('input', (e) => {
+            if (selectedCell) {
+                selectedCell.timespan = parseInt(e.target.value);
+            }
+        });
+
+        document.getElementById('cellTimespanUnit').addEventListener('change', (e) => {
+            if (selectedCell) {
+                selectedCell.timespanUnit = e.target.value;
+            }
+        });
+
+        document.getElementById('cellColor').addEventListener('input', (e) => {
+            if (selectedCell) {
+                selectedCell.color = e.target.value;
+                selectedCell.update();
+            }
+        });
+
+        document.getElementById('cellSize').addEventListener('input', (e) => {
+            if (selectedCell) {
+                selectedCell.size = parseInt(e.target.value);
+                selectedCell.update();
+            }
+        });
+
+        document.getElementById('addFodder').addEventListener('click', () => {
+            const input = document.getElementById('newFodder');
+            if (selectedCell && input.value.trim()) {
+                selectedCell.fodder.push(input.value.trim());
+                input.value = '';
+                updateFodderList(selectedCell);
+            }
+        });
+
+        document.getElementById('newFodder').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                document.getElementById('addFodder').click();
+            }
+        });
+
+        document.getElementById('deleteCell').addEventListener('click', () => {
+            if (selectedCell) {
+                selectedCell.remove();
+                document.getElementById('editPanel').classList.remove('visible');
+                selectedCell = null;
+            }
+        });
+
+        // Mouse handling
+        document.addEventListener('mousemove', (e) => {
+            if (draggedCell) {
+                draggedCell.x = e.clientX - draggedCell.dragOffsetX;
+                draggedCell.y = e.clientY - draggedCell.dragOffsetY;
+                draggedCell.update();
+            }
+        });
+
+        document.addEventListener('mouseup', () => {
+            draggedCell = null;
+        });
+
+        // Drawing loop
+        function drawConnections() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            connections.forEach(conn => {
+                const from = conn.from;
+                const to = conn.to;
+                
+                // Draw fiber
+                ctx.strokeStyle = '#4a7c4a44';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([5, 5]);
+                ctx.beginPath();
+                ctx.moveTo(from.x, from.y);
+                ctx.lineTo(to.x, to.y);
+                ctx.stroke();
+                
+                // Draw communication particles
+                const distance = Math.hypot(to.x - from.x, to.y - from.y);
+                const progress = (Date.now() % 3000) / 3000;
+                const particleX = from.x + (to.x - from.x) * progress;
+                const particleY = from.y + (to.y - from.y) * progress;
+                
+                ctx.setLineDash([]);
+                ctx.fillStyle = from.color + 'aa';
+                ctx.beginPath();
+                ctx.arc(particleX, particleY, 4, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        }
+
+        function animate() {
+            drawConnections();
+            requestAnimationFrame(animate);
+        }
+        animate();
+
+        // Initialize with one cell
+        const initialCell = new Cell(window.innerWidth / 2, window.innerHeight / 2);
+        cells.push(initialCell);
+    </script>
+</body>
+</html>
