@@ -1,575 +1,882 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cellular Calendar</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>n o w</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=Inconsolata:wght@300;400&display=swap');
 
-        body {
-            font-family: 'Courier New', monospace;
-            background: #0a0a0a;
-            color: #e0e0e0;
-            overflow: hidden;
-            height: 100vh;
-        }
+  :root {
+    --bg: #090c0a;
+    --membrane-active: #4a7c5a;
+    --membrane-dormant: #2a3d2f;
+    --membrane-spore: #1a2018;
+    --membrane-resurgent: #8fbc6a;
+    --charge: #a8d878;
+    --text: #c8d8c0;
+    --text-dim: #5a7060;
+    --panel: rgba(12, 18, 14, 0.96);
+    --threshold: #d4f0a0;
+  }
 
-        #canvas {
-            position: absolute;
-            top: 0;
-            left: 0;
-            z-index: 1;
-        }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
 
-        #interface {
-            position: relative;
-            z-index: 10;
-            pointer-events: none;
-        }
+  body {
+    background: var(--bg);
+    font-family: 'Inconsolata', monospace;
+    color: var(--text);
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+    cursor: crosshair;
+  }
 
-        #controls {
-            position: fixed;
-            top: 20px;
-            left: 20px;
-            background: rgba(20, 20, 20, 0.9);
-            padding: 20px;
-            border: 1px solid #333;
-            border-radius: 4px;
-            pointer-events: all;
-            max-width: 300px;
-        }
+  #field { position: absolute; inset: 0; z-index: 1; }
+  #mt-canvas { position: absolute; inset: 0; z-index: 5; pointer-events: none; }
 
-        button {
-            background: #1a1a1a;
-            border: 1px solid #444;
-            color: #e0e0e0;
-            padding: 8px 16px;
-            cursor: pointer;
-            border-radius: 3px;
-            font-family: inherit;
-            font-size: 12px;
-            margin: 5px 5px 5px 0;
-        }
+  .cell {
+    position: absolute;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 14px;
+    z-index: 10;
+    font-family: 'IM Fell English', serif;
+    font-size: 11px;
+    line-height: 1.4;
+    user-select: none;
+  }
 
-        button:hover {
-            background: #2a2a2a;
-            border-color: #666;
-        }
+  .cell-inner {
+    position: relative;
+    z-index: 2;
+    word-break: break-word;
+    max-width: 88%;
+    pointer-events: none;
+  }
 
-        button.active {
-            background: #2d4a2d;
-            border-color: #4a7c4a;
-        }
+  .cell-intention {
+    font-style: italic;
+    font-size: 11px;
+    display: block;
+  }
 
-        .cell {
-            position: absolute;
-            border: 2px solid;
-            border-radius: 50%;
-            cursor: move;
-            transition: all 0.2s ease;
-            pointer-events: all;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 11px;
-            text-align: center;
-            padding: 8px;
-            backdrop-filter: blur(4px);
-        }
+  .cell-timespan {
+    font-family: 'Inconsolata', monospace;
+    font-size: 9px;
+    color: var(--text-dim);
+    display: block;
+    margin-top: 3px;
+    letter-spacing: 0.3px;
+  }
 
-        .cell:hover {
-            transform: scale(1.05);
-            z-index: 100;
-        }
+  .state-dot {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    pointer-events: none;
+  }
+  .state-dot.active { background: var(--membrane-active); }
+  .state-dot.dormant { background: var(--membrane-dormant); }
+  .state-dot.spore { background: var(--membrane-spore); }
+  .state-dot.resurgent { background: var(--membrane-resurgent); animation: blink 1s ease-in-out infinite; }
 
-        .cell.selected {
-            box-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
-            z-index: 101;
-        }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
 
-        .cell-label {
-            word-wrap: break-word;
-            overflow: hidden;
-            max-height: 100%;
-            line-height: 1.2;
-        }
+  .cell[data-state="active"] {
+    border: 1.5px solid var(--membrane-active);
+    background: rgba(74,124,90,0.07);
+  }
+  .cell[data-state="dormant"] {
+    border: 1px dashed var(--membrane-dormant);
+    background: rgba(42,61,47,0.04);
+    opacity: 0.55;
+  }
+  .cell[data-state="spore"] {
+    border: 1px dotted var(--membrane-spore);
+    background: rgba(26,32,24,0.03);
+    opacity: 0.25;
+    filter: blur(0.8px);
+  }
+  .cell[data-state="resurgent"] {
+    border: 2px solid var(--membrane-resurgent);
+    background: rgba(143,188,106,0.1);
+    animation: resurgePulse 2.5s ease-in-out infinite;
+  }
 
-        #editPanel {
-            position: fixed;
-            right: 20px;
-            top: 20px;
-            width: 350px;
-            background: rgba(20, 20, 20, 0.95);
-            border: 1px solid #333;
-            padding: 20px;
-            border-radius: 4px;
-            display: none;
-            pointer-events: all;
-            max-height: calc(100vh - 40px);
-            overflow-y: auto;
-        }
+  @keyframes resurgePulse {
+    0%,100% { box-shadow: 0 0 30px rgba(143,188,106,0.25); }
+    50% { box-shadow: 0 0 60px rgba(143,188,106,0.45); }
+  }
 
-        #editPanel.visible {
-            display: block;
-        }
+  .cell.threshold {
+    border-color: var(--threshold) !important;
+    box-shadow: 0 0 50px rgba(212,240,160,0.35) !important;
+  }
 
-        label {
-            display: block;
-            margin-top: 12px;
-            margin-bottom: 4px;
-            font-size: 11px;
-            color: #999;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
+  .cell.selected {
+    outline: 1px solid rgba(200,216,192,0.25);
+    outline-offset: 8px;
+  }
 
-        input[type="text"],
-        input[type="number"],
-        textarea,
-        select {
-            width: 100%;
-            background: #1a1a1a;
-            border: 1px solid #444;
-            color: #e0e0e0;
-            padding: 8px;
-            border-radius: 3px;
-            font-family: inherit;
-            font-size: 12px;
-        }
+  .charge-arc {
+    position: absolute;
+    inset: -5px;
+    border-radius: 50%;
+    pointer-events: none;
+    width: calc(100% + 10px);
+    height: calc(100% + 10px);
+  }
 
-        textarea {
-            min-height: 80px;
-            resize: vertical;
-        }
+  /* Panel */
+  #panel {
+    position: fixed;
+    right: 0; top: 0;
+    width: 290px;
+    height: 100vh;
+    background: var(--panel);
+    border-left: 1px solid rgba(74,124,90,0.12);
+    padding: 32px 20px 20px;
+    z-index: 100;
+    display: none;
+    overflow-y: auto;
+    font-size: 12px;
+  }
+  #panel.open { display: block; }
 
-        input[type="color"] {
-            width: 100%;
-            height: 40px;
-            background: #1a1a1a;
-            border: 1px solid #444;
-            cursor: pointer;
-            border-radius: 3px;
-        }
+  #panel h2 {
+    font-family: 'IM Fell English', serif;
+    font-size: 14px;
+    font-style: italic;
+    color: var(--text);
+    margin-bottom: 18px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(74,124,90,0.15);
+  }
 
-        .close-btn {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background: transparent;
-            border: none;
-            color: #666;
-            font-size: 20px;
-            cursor: pointer;
-            padding: 0;
-            width: 30px;
-            height: 30px;
-        }
+  .field-label {
+    display: block;
+    color: var(--text-dim);
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-top: 14px;
+    margin-bottom: 5px;
+  }
 
-        .close-btn:hover {
-            color: #999;
-        }
+  input[type="text"], input[type="number"], textarea, select {
+    width: 100%;
+    background: rgba(74,124,90,0.05);
+    border: 1px solid rgba(74,124,90,0.18);
+    color: var(--text);
+    padding: 7px 9px;
+    font-family: 'Inconsolata', monospace;
+    font-size: 12px;
+    border-radius: 2px;
+    outline: none;
+  }
+  input:focus, textarea:focus, select:focus {
+    border-color: rgba(74,124,90,0.45);
+  }
 
-        .fodder-item {
-            background: #151515;
-            padding: 8px;
-            margin: 6px 0;
-            border-left: 2px solid #444;
-            font-size: 11px;
-            border-radius: 2px;
-        }
+  .timespan-row { display: flex; gap: 6px; }
+  .timespan-row input { flex: 1; }
+  .timespan-row select { flex: 0 0 86px; }
 
-        .fodder-input {
-            display: flex;
-            gap: 6px;
-            margin-top: 8px;
-        }
+  .state-selector { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-top: 4px; }
 
-        .fodder-input input {
-            flex: 1;
-        }
+  .state-btn {
+    padding: 6px;
+    border: 1px solid rgba(74,124,90,0.18);
+    background: transparent;
+    color: var(--text-dim);
+    font-family: 'Inconsolata', monospace;
+    font-size: 10px;
+    cursor: pointer;
+    border-radius: 2px;
+    transition: all 0.2s;
+  }
+  .state-btn:hover { border-color: rgba(74,124,90,0.45); color: var(--text); }
+  .state-btn.sel { background: rgba(74,124,90,0.12); border-color: var(--membrane-active); color: var(--text); }
+  .state-btn[data-s="resurgent"].sel { border-color: var(--membrane-resurgent); }
+  .state-btn[data-s="dormant"].sel { border-color: var(--membrane-dormant); }
+  .state-btn[data-s="spore"].sel { border-color: #3a4838; }
 
-        .fodder-input button {
-            margin: 0;
-        }
+  .charge-bar-outer { width:100%; height:2px; background:rgba(74,124,90,0.1); border-radius:2px; margin-top:5px; overflow:hidden; }
+  .charge-bar-inner { height:100%; background: var(--charge); border-radius:2px; transition: width 0.5s ease; }
 
-        #info {
-            position: fixed;
-            bottom: 20px;
-            left: 20px;
-            background: rgba(20, 20, 20, 0.9);
-            padding: 12px 16px;
-            border: 1px solid #333;
-            border-radius: 4px;
-            font-size: 11px;
-            color: #666;
-            pointer-events: none;
-        }
+  .fodder-item {
+    padding: 5px 8px;
+    margin: 3px 0;
+    border-left: 1px solid rgba(74,124,90,0.25);
+    font-size: 11px;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-style: italic;
+    transition: all 0.15s;
+  }
+  .fodder-item:hover { color: var(--text); border-left-color: var(--membrane-active); }
 
-        .connection-indicator {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background: rgba(20, 20, 20, 0.9);
-            padding: 12px 16px;
-            border: 1px solid #333;
-            border-radius: 4px;
-            font-size: 11px;
-            color: #4a7c4a;
-            display: none;
-            pointer-events: none;
-        }
+  .fodder-add { display: flex; gap: 5px; margin-top: 6px; }
+  .fodder-add input { flex: 1; }
 
-        .connection-indicator.visible {
-            display: block;
-        }
-    </style>
+  .btn {
+    background: transparent;
+    border: 1px solid rgba(74,124,90,0.25);
+    color: var(--text-dim);
+    padding: 6px 11px;
+    font-family: 'Inconsolata', monospace;
+    font-size: 11px;
+    cursor: pointer;
+    border-radius: 2px;
+    transition: all 0.2s;
+  }
+  .btn:hover { border-color: var(--membrane-active); color: var(--text); }
+  .btn.danger { border-color: rgba(120,60,60,0.35); color: rgba(180,100,100,0.6); }
+  .btn.danger:hover { border-color: rgba(180,80,80,0.55); color: rgba(220,120,120,0.85); }
+  .btn.active-mode { background: rgba(74,124,90,0.14); border-color: var(--membrane-active); color: var(--text); }
+
+  hr.div { border:none; border-top: 1px solid rgba(74,124,90,0.09); margin: 14px 0; }
+
+  #close-panel {
+    position: absolute; top: 10px; right: 12px;
+    background: transparent; border: none;
+    color: var(--text-dim); font-size: 18px;
+    cursor: pointer; line-height: 1;
+  }
+  #close-panel:hover { color: var(--text); }
+
+  #topbar {
+    position: fixed; top: 0; left: 0; right: 290px;
+    height: 46px; z-index: 50;
+    display: flex; align-items: center;
+    padding: 0 18px; gap: 8px;
+    background: linear-gradient(to bottom, rgba(9,12,10,0.92), transparent);
+  }
+
+  #title {
+    font-family: 'IM Fell English', serif;
+    font-size: 13px; font-style: italic;
+    color: var(--text-dim); letter-spacing: 5px;
+    margin-right: 10px;
+  }
+
+  #status {
+    position: fixed; bottom: 14px; left: 18px;
+    font-size: 10px; color: var(--text-dim);
+    z-index: 50; pointer-events: none;
+    letter-spacing: 0.3px;
+    transition: opacity 0.5s;
+  }
+
+  #threshold-flash {
+    position: fixed; inset: 0;
+    background: radial-gradient(ellipse at center, rgba(212,240,160,0.07) 0%, transparent 65%);
+    pointer-events: none; z-index: 200;
+    opacity: 0; transition: opacity 0.4s ease;
+  }
+  #threshold-flash.flash { opacity: 1; transition: opacity 0s; }
+
+  .ribosome-hint {
+    position: fixed; bottom: 36px;
+    left: 50%; transform: translateX(-50%);
+    background: var(--panel);
+    border: 1px solid rgba(143,188,106,0.25);
+    padding: 9px 15px;
+    font-family: 'IM Fell English', serif;
+    font-style: italic; font-size: 12px;
+    color: var(--membrane-resurgent);
+    z-index: 150; max-width: 420px;
+    text-align: center;
+    opacity: 0; transition: opacity 0.6s ease;
+    pointer-events: none; border-radius: 2px;
+  }
+  .ribosome-hint.visible { opacity: 1; }
+
+  #panel-empty {
+    color: var(--text-dim);
+    font-style: italic;
+    font-family: 'IM Fell English', serif;
+    font-size: 13px; text-align: center;
+    margin-top: 50px; line-height: 2;
+  }
+
+  input[type="color"] {
+    width:100%; height:30px;
+    border: 1px solid rgba(74,124,90,0.18);
+    background: rgba(74,124,90,0.05);
+    cursor: pointer; border-radius: 2px; padding: 2px;
+  }
+  input[type="range"] { width:100%; accent-color: var(--membrane-active); margin-top:2px; }
+
+  ::-webkit-scrollbar { width: 3px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(74,124,90,0.25); border-radius:2px; }
+</style>
 </head>
 <body>
-    <canvas id="canvas"></canvas>
-    
-    <div id="interface">
-        <div id="controls">
-            <h3 style="margin-bottom: 12px; font-size: 14px;">Cellular Calendar</h3>
-            <button id="addCell">+ New Cell</button>
-            <button id="connectMode">Connect Cells</button>
-            <button id="clearConnections">Clear Connections</button>
-        </div>
 
-        <div id="editPanel">
-            <button class="close-btn" id="closePanel">×</button>
-            <h3 style="margin-bottom: 16px; font-size: 14px;">Cell Editor</h3>
-            
-            <label>Intention</label>
-            <input type="text" id="cellIntention" placeholder="What is this cell's purpose?">
-            
-            <label>Timespan</label>
-            <div style="display: flex; gap: 8px;">
-                <input type="number" id="cellTimespan" min="1" value="7" style="flex: 1;">
-                <select id="cellTimespanUnit" style="flex: 0 0 100px;">
-                    <option value="days">days</option>
-                    <option value="weeks">weeks</option>
-                    <option value="months">months</option>
-                    <option value="years">years</option>
-                </select>
-            </div>
-            
-            <label>Membrane Color</label>
-            <input type="color" id="cellColor" value="#4a7c4a">
-            
-            <label>Size</label>
-            <input type="range" id="cellSize" min="80" max="200" value="120">
-            
-            <label>Fodder (resources, notes, materials)</label>
-            <div id="fodderList"></div>
-            <div class="fodder-input">
-                <input type="text" id="newFodder" placeholder="Add fodder...">
-                <button id="addFodder">+</button>
-            </div>
-            
-            <button id="deleteCell" style="margin-top: 20px; background: #4a2d2d; border-color: #7c4a4a;">Delete Cell</button>
-        </div>
+<canvas id="field"></canvas>
+<canvas id="mt-canvas"></canvas>
+<div id="threshold-flash"></div>
 
-        <div id="info">
-            Click "New Cell" to begin · Drag cells to arrange · Click cell to edit · Connect mode for matrix fibers
-        </div>
+<div id="topbar">
+  <span id="title">n &nbsp; o &nbsp; w</span>
+  <button class="btn" id="btn-new">+ cell</button>
+  <button class="btn" id="btn-connect">connect</button>
+  <button class="btn" id="btn-sound">♪ on</button>
+</div>
 
-        <div id="connectionIndicator" class="connection-indicator">
-            Connecting mode active · Click two cells to create matrix fiber
-        </div>
+<div id="status">inhabit like you live here</div>
+
+<div id="panel">
+  <button id="close-panel">×</button>
+  <h2 id="panel-title">cell</h2>
+  <div id="panel-content">
+    <div id="panel-empty">select a cell<br>to tend it</div>
+  </div>
+</div>
+
+<div class="ribosome-hint" id="ribosome"></div>
+
+<script>
+// ── Audio ──────────────────────────────────────────────────────────────────
+let audioCtx = null;
+let soundOn = true;
+
+function audio() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return audioCtx;
+}
+
+function tone(freq, type, dur, vol=0.07, attack=0.02) {
+  if (!soundOn) return;
+  try {
+    const ctx = audio();
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.connect(g); g.connect(ctx.destination);
+    o.type = type; o.frequency.value = freq;
+    g.gain.setValueAtTime(0, ctx.currentTime);
+    g.gain.linearRampToValueAtTime(vol, ctx.currentTime + attack);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
+    o.start(); o.stop(ctx.currentTime + dur + 0.1);
+  } catch(e) {}
+}
+
+const sounds = {
+  newCell:    () => tone(523, 'sine', 0.35, 0.05),
+  connect:    () => { tone(220,'sine',1.2,0.05); setTimeout(()=>tone(330,'sine',0.9,0.04),200); },
+  threshold:  () => { [174,261,349,523].forEach((f,i)=>setTimeout(()=>tone(f,'sine',1.2,0.05),i*200)); },
+  dissolve:   () => { tone(440,'sine',2,0.04,0.15); setTimeout(()=>tone(220,'sine',2.5,0.03,0.25),350); },
+  resurge:    () => { [130,196,261,392].forEach((f,i)=>setTimeout(()=>tone(f,'sine',2,0.05),i*450)); },
+};
+
+// ── Canvas ─────────────────────────────────────────────────────────────────
+const fCanvas = document.getElementById('field');
+const fCtx = fCanvas.getContext('2d');
+const mCanvas = document.getElementById('mt-canvas');
+const mCtx = mCanvas.getContext('2d');
+
+function resize() {
+  fCanvas.width = mCanvas.width = window.innerWidth;
+  fCanvas.height = mCanvas.height = window.innerHeight;
+}
+resize();
+window.addEventListener('resize', resize);
+
+// ── State ──────────────────────────────────────────────────────────────────
+let cells = [];
+let tubes = []; // microtubules
+let compost = []; // dissolved cell particles
+let selected = null;
+let connectMode = false;
+let connectFrom = null;
+let dragging = null;
+let dragOX = 0, dragOY = 0;
+let nextId = 1;
+let ribTimer = null;
+
+const CHARGE_THRESHOLD = 78;
+const CHARGE_DECAY_RATE = 0.015;
+const CHARGE_PER_VISIT = 9;
+const DORMANT_IDLE_S = 90;
+
+const RIBOSOME = {
+  threshold: 'threshold dynamics — where small perturbations cascade into new order (bifurcation theory)',
+  connection: 'coupled oscillators — when two rhythms entrain, each changes the other (Huygens, 1665)',
+  resurge:    'emergence from dormancy — the system retains pattern through state change (attractor dynamics)',
+  dissolve:   'dissipation into field — structure releasing back into medium (open systems thermodynamics)',
+  charge:     'resonance fields — accumulated potential seeking discharge across proximity',
+  compost:    'endosymbiotic nutrient cycling — dissolved cells feed living ones',
+  default:    'you are inhabiting a living system — it is learning your rhythms',
+};
+
+// ── Cell ───────────────────────────────────────────────────────────────────
+class Cell {
+  constructor(x, y) {
+    this.id = nextId++;
+    this.x = x; this.y = y;
+    this.intention = '';
+    this.timespan = 7; this.unit = 'days';
+    this.color = '#4a7c5a';
+    this.size = 110;
+    this.fodder = [];
+    this.state = 'active';
+    this.charge = 12;
+    this.lastVisit = Date.now();
+    this.born = Date.now();
+    this.isThreshold = false;
+    this.el = this.build();
+  }
+
+  build() {
+    const el = document.createElement('div');
+    el.className = 'cell';
+    el.dataset.state = 'active';
+    this.position(el);
+
+    el.innerHTML = `
+      <div class="state-dot active"></div>
+      <svg class="charge-arc" viewBox="0 0 110 110" style="position:absolute;inset:-5px;width:calc(100% + 10px);height:calc(100% + 10px);pointer-events:none;">
+        <circle class="carc" cx="55" cy="55" r="52"
+          fill="none" stroke="${this.color}" stroke-width="0.9"
+          stroke-dasharray="0 327" stroke-linecap="round"
+          transform="rotate(-90 55 55)"
+          style="transition:stroke-dasharray 0.7s ease;opacity:0.5"/>
+      </svg>
+      <div class="cell-inner">
+        <span class="cell-intention">forming...</span>
+        <span class="cell-timespan">7 days</span>
+      </div>`;
+
+    document.body.appendChild(el);
+
+    el.addEventListener('mousedown', e => {
+      if (connectMode) { this.handleConnect(); return; }
+      e.stopPropagation();
+      dragging = this;
+      dragOX = e.clientX - this.x;
+      dragOY = e.clientY - this.y;
+    });
+
+    el.addEventListener('click', e => {
+      if (!connectMode) { e.stopPropagation(); this.visit(); selectCell(this); }
+    });
+
+    return el;
+  }
+
+  position(el) {
+    const s = el || this.el;
+    s.style.left = (this.x - this.size/2) + 'px';
+    s.style.top  = (this.y - this.size/2) + 'px';
+    s.style.width = s.style.height = this.size + 'px';
+  }
+
+  move(x, y) {
+    this.x = x; this.y = y;
+    this.position();
+  }
+
+  visit() {
+    this.lastVisit = Date.now();
+    this.charge = Math.min(100, this.charge + CHARGE_PER_VISIT);
+    if (this.state === 'dormant' || this.state === 'spore') {
+      this.setState('resurgent');
+      sounds.resurge();
+      ribosome('resurge');
+    }
+    this.syncCharge();
+    this.checkThreshold();
+  }
+
+  setState(s) {
+    this.state = s;
+    this.el.dataset.state = s;
+    this.el.querySelector('.state-dot').className = `state-dot ${s}`;
+    if (s === 'spore') { sounds.dissolve(); ribosome('dissolve'); this.dissolveIntoMatrix(); }
+    if (s === 'resurgent') { sounds.resurge(); ribosome('resurge'); }
+  }
+
+  syncCharge() {
+    const circ = 2 * Math.PI * 52;
+    const arc = this.el.querySelector('.carc');
+    if (arc) {
+      const dash = (this.charge/100) * circ;
+      arc.setAttribute('stroke-dasharray', `${dash} ${circ}`);
+      arc.setAttribute('stroke', this.charge > 65 ? '#a8d878' : this.color);
+    }
+    if (this.state === 'active') {
+      const glow = 0.04 + this.charge * 0.0015;
+      this.el.style.boxShadow = `0 0 ${10 + this.charge*0.25}px rgba(74,124,90,${glow}), inset 0 0 ${20 + this.charge*0.2}px rgba(74,124,90,${glow*0.4})`;
+    }
+  }
+
+  checkThreshold() {
+    if (this.charge >= CHARGE_THRESHOLD && !this.isThreshold) {
+      this.isThreshold = true;
+      this.el.classList.add('threshold');
+      sounds.threshold();
+      ribosome('threshold');
+      flashField();
+      this.seekConnection();
+    }
+    if (this.charge < CHARGE_THRESHOLD * 0.5 && this.isThreshold) {
+      this.isThreshold = false;
+      this.el.classList.remove('threshold');
+    }
+  }
+
+  seekConnection() {
+    // Find nearest cell by weighted proximity+charge
+    let best = null, bestScore = Infinity;
+    cells.forEach(c => {
+      if (c === this || c.state === 'spore') return;
+      const d = Math.hypot(c.x - this.x, c.y - this.y);
+      const score = d / (c.charge + 5);
+      if (score < bestScore) { bestScore = score; best = c; }
+    });
+    if (best) addTube(this, best, true);
+  }
+
+  dissolveIntoMatrix() {
+    for (let i = 0; i < 14; i++) {
+      compost.push({
+        x: this.x + (Math.random()-0.5)*80,
+        y: this.y + (Math.random()-0.5)*80,
+        r: 15 + Math.random()*50,
+        born: Date.now(),
+        life: 10000 + Math.random()*15000,
+      });
+    }
+    ribosome('compost');
+  }
+
+  updateDisplay() {
+    const intent = this.el.querySelector('.cell-intention');
+    const ts = this.el.querySelector('.cell-timespan');
+    if (intent) intent.textContent = this.intention || 'forming...';
+    if (ts) ts.textContent = `${this.timespan} ${this.unit}`;
+    this.el.style.width = this.el.style.height = this.size + 'px';
+    this.position();
+    this.syncCharge();
+  }
+
+  handleConnect() {
+    if (!connectFrom) {
+      connectFrom = this;
+      this.el.style.outline = '1px solid rgba(143,188,106,0.55)';
+      this.el.style.outlineOffset = '9px';
+    } else if (connectFrom !== this) {
+      addTube(connectFrom, this, false);
+      sounds.connect(); ribosome('connection');
+      connectFrom.el.style.outline = '';
+      connectFrom = null;
+    } else {
+      connectFrom.el.style.outline = '';
+      connectFrom = null;
+    }
+  }
+
+  decay(dt) {
+    if (this.state !== 'active' && this.state !== 'resurgent') return;
+    this.charge = Math.max(0, this.charge - CHARGE_DECAY_RATE * dt);
+    this.syncCharge();
+    const idleS = (Date.now() - this.lastVisit) / 1000;
+    if (this.charge < 10 && this.state === 'active' && idleS > DORMANT_IDLE_S) {
+      this.setState('dormant');
+    }
+    this.checkThreshold();
+  }
+
+  remove() {
+    if (this.state !== 'spore') this.dissolveIntoMatrix();
+    this.el.remove();
+    cells = cells.filter(c => c !== this);
+    tubes = tubes.filter(t => t.from !== this && t.to !== this);
+  }
+}
+
+// ── Microtubules ───────────────────────────────────────────────────────────
+function addTube(from, to, spontaneous) {
+  if (tubes.find(t => (t.from===from&&t.to===to)||(t.from===to&&t.to===from))) return;
+  tubes.push({ from, to, progress: 0, spontaneous, pOffset: Math.random(), strength: 0.25 });
+}
+
+function drawTubes() {
+  mCtx.clearRect(0, 0, mCanvas.width, mCanvas.height);
+  const now = Date.now();
+  tubes.forEach(t => {
+    t.progress = Math.min(1, t.progress + 0.006);
+    t.strength = Math.min(0.55, t.strength + 0.0008);
+    const {from, to} = t;
+    const dx = to.x - from.x, dy = to.y - from.y;
+    const endX = from.x + dx * t.progress;
+    const endY = from.y + dy * t.progress;
+    const mx = (from.x+endX)/2 + dy*0.07;
+    const my = (from.y+endY)/2 - dx*0.07;
+
+    mCtx.beginPath();
+    mCtx.moveTo(from.x, from.y);
+    mCtx.quadraticCurveTo(mx, my, endX, endY);
+    const alpha = t.spontaneous ? t.strength * 0.6 : t.strength;
+    mCtx.strokeStyle = `rgba(100,160,90,${alpha * 0.38})`;
+    mCtx.lineWidth = t.spontaneous ? 0.7 : 1.1;
+    mCtx.setLineDash(t.spontaneous ? [3,7] : []);
+    mCtx.stroke();
+    mCtx.setLineDash([]);
+
+    // Particle
+    if (t.progress >= 1) {
+      const p = ((now/3200) + t.pOffset) % 1;
+      // Bezier point
+      const bx = (1-p)*(1-p)*from.x + 2*(1-p)*p*mx + p*p*to.x;
+      const by = (1-p)*(1-p)*from.y + 2*(1-p)*p*my + p*p*to.y;
+      mCtx.beginPath();
+      mCtx.arc(bx, by, 1.8, 0, Math.PI*2);
+      mCtx.fillStyle = `rgba(168,216,120,${0.35 + Math.sin(p*Math.PI)*0.3})`;
+      mCtx.fill();
+    }
+  });
+}
+
+// ── Field ──────────────────────────────────────────────────────────────────
+function drawField() {
+  fCtx.clearRect(0, 0, fCanvas.width, fCanvas.height);
+
+  // Subtle grid
+  fCtx.strokeStyle = 'rgba(35,52,38,0.1)';
+  fCtx.lineWidth = 0.4;
+  const sp = 90;
+  for (let x = 0; x < fCanvas.width; x += sp) {
+    fCtx.beginPath(); fCtx.moveTo(x,0); fCtx.lineTo(x,fCanvas.height); fCtx.stroke();
+  }
+  for (let y = 0; y < fCanvas.height; y += sp) {
+    fCtx.beginPath(); fCtx.moveTo(0,y); fCtx.lineTo(fCanvas.width,y); fCtx.stroke();
+  }
+
+  // Compost glow
+  const now = Date.now();
+  compost.forEach((p, i) => {
+    const age = (now - p.born) / p.life;
+    if (age > 1) { compost.splice(i, 1); return; }
+    const alpha = Math.sin(age * Math.PI) * 0.055;
+    const r = p.r * (1 + age * 1.8);
+    const g = fCtx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r);
+    g.addColorStop(0, `rgba(80,145,80,${alpha})`);
+    g.addColorStop(1, 'transparent');
+    fCtx.beginPath(); fCtx.arc(p.x, p.y, r, 0, Math.PI*2);
+    fCtx.fillStyle = g; fCtx.fill();
+  });
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+function flashField() {
+  const el = document.getElementById('threshold-flash');
+  el.classList.add('flash');
+  setTimeout(() => el.classList.remove('flash'), 60);
+}
+
+function ribosome(key) {
+  const el = document.getElementById('ribosome');
+  el.textContent = RIBOSOME[key] || RIBOSOME.default;
+  el.classList.add('visible');
+  if (ribTimer) clearTimeout(ribTimer);
+  ribTimer = setTimeout(() => el.classList.remove('visible'), 6000);
+}
+
+// ── Select / Panel ─────────────────────────────────────────────────────────
+function selectCell(cell) {
+  if (selected) selected.el.classList.remove('selected');
+  selected = cell;
+  if (!cell) { renderPanel(null); return; }
+  cell.el.classList.add('selected');
+  document.getElementById('panel').classList.add('open');
+  renderPanel(cell);
+}
+
+function renderPanel(cell) {
+  const title = document.getElementById('panel-title');
+  const content = document.getElementById('panel-content');
+
+  if (!cell) {
+    title.textContent = 'cell';
+    content.innerHTML = `<div id="panel-empty">select a cell<br>to tend it</div>`;
+    return;
+  }
+
+  title.textContent = cell.intention || 'forming...';
+  const cp = Math.round(cell.charge);
+  const fHTML = cell.fodder.length
+    ? cell.fodder.map((f,i) => `<div class="fodder-item" data-i="${i}">↳ ${f}</div>`).join('')
+    : `<div style="color:var(--text-dim);font-size:11px;font-style:italic;padding:4px 0">empty — add nourishment</div>`;
+
+  content.innerHTML = `
+    <span class="field-label">intention</span>
+    <input type="text" id="fi" value="${cell.intention}" placeholder="what does this cell hold?">
+
+    <span class="field-label">timespan</span>
+    <div class="timespan-row">
+      <input type="number" id="ft" min="1" value="${cell.timespan}">
+      <select id="fu">
+        ${['hours','days','weeks','months','years'].map(u=>`<option ${cell.unit===u?'selected':''} value="${u}">${u}</option>`).join('')}
+      </select>
     </div>
 
-    <script>
-        const canvas = document.getElementById('canvas');
-        const ctx = canvas.getContext('2d');
-        
-        // Set canvas size
-        function resizeCanvas() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-        }
-        resizeCanvas();
-        window.addEventListener('resize', resizeCanvas);
+    <span class="field-label">state</span>
+    <div class="state-selector">
+      ${['active','dormant','spore','resurgent'].map(s=>
+        `<button class="state-btn ${cell.state===s?'sel':''}" data-s="${s}">${s}</button>`
+      ).join('')}
+    </div>
 
-        // State
-        let cells = [];
-        let connections = [];
-        let selectedCell = null;
-        let draggedCell = null;
-        let connectMode = false;
-        let connectingFrom = null;
-        let nextId = 1;
+    <span class="field-label">membrane</span>
+    <input type="color" id="fc" value="${cell.color}">
 
-        // Cell class
-        class Cell {
-            constructor(x, y) {
-                this.id = nextId++;
-                this.x = x;
-                this.y = y;
-                this.intention = 'Unnamed Cell';
-                this.timespan = 7;
-                this.timespanUnit = 'days';
-                this.color = '#4a7c4a';
-                this.size = 120;
-                this.fodder = [];
-                this.element = this.createElement();
-            }
+    <span class="field-label">size</span>
+    <input type="range" id="fs" min="70" max="220" value="${cell.size}">
 
-            createElement() {
-                const el = document.createElement('div');
-                el.className = 'cell';
-                el.style.left = (this.x - this.size/2) + 'px';
-                el.style.top = (this.y - this.size/2) + 'px';
-                el.style.width = this.size + 'px';
-                el.style.height = this.size + 'px';
-                el.style.borderColor = this.color;
-                el.style.backgroundColor = this.color + '22';
-                
-                const label = document.createElement('div');
-                label.className = 'cell-label';
-                label.textContent = this.intention;
-                el.appendChild(label);
-                
-                document.getElementById('interface').appendChild(el);
-                
-                el.addEventListener('mousedown', (e) => {
-                    if (connectMode) {
-                        this.handleConnect();
-                    } else {
-                        this.startDrag(e);
-                    }
-                });
-                
-                el.addEventListener('click', (e) => {
-                    if (!connectMode) {
-                        e.stopPropagation();
-                        this.select();
-                    }
-                });
-                
-                return el;
-            }
+    <span class="field-label">charge &nbsp;<span style="color:var(--charge);font-size:10px">${cp}%</span></span>
+    <div class="charge-bar-outer"><div class="charge-bar-inner" style="width:${cp}%"></div></div>
 
-            update() {
-                this.element.style.left = (this.x - this.size/2) + 'px';
-                this.element.style.top = (this.y - this.size/2) + 'px';
-                this.element.style.width = this.size + 'px';
-                this.element.style.height = this.size + 'px';
-                this.element.style.borderColor = this.color;
-                this.element.style.backgroundColor = this.color + '22';
-                this.element.querySelector('.cell-label').textContent = this.intention;
-            }
+    <hr class="div">
+    <span class="field-label">fodder</span>
+    <div id="flist">${fHTML}</div>
+    <div class="fodder-add">
+      <input type="text" id="ff" placeholder="add nourishment...">
+      <button class="btn" id="badd">+</button>
+    </div>
 
-            startDrag(e) {
-                draggedCell = this;
-                const rect = this.element.getBoundingClientRect();
-                this.dragOffsetX = e.clientX - rect.left - this.size/2;
-                this.dragOffsetY = e.clientY - rect.top - this.size/2;
-            }
+    <hr class="div">
+    <div style="display:flex;gap:6px;flex-wrap:wrap">
+      <button class="btn" id="bnourish">nourish</button>
+      <button class="btn danger" id="bdissolve">dissolve</button>
+    </div>
+  `;
 
-            select() {
-                if (selectedCell) {
-                    selectedCell.element.classList.remove('selected');
-                }
-                selectedCell = this;
-                this.element.classList.add('selected');
-                openEditPanel(this);
-            }
+  const bind = (id, ev, fn) => document.getElementById(id)?.addEventListener(ev, fn);
 
-            handleConnect() {
-                if (!connectingFrom) {
-                    connectingFrom = this;
-                    this.element.style.boxShadow = '0 0 20px rgba(74, 124, 74, 0.8)';
-                } else if (connectingFrom !== this) {
-                    connections.push({ from: connectingFrom, to: this });
-                    connectingFrom.element.style.boxShadow = '';
-                    connectingFrom = null;
-                } else {
-                    connectingFrom.element.style.boxShadow = '';
-                    connectingFrom = null;
-                }
-            }
+  bind('fi','input', e => { cell.intention = e.target.value; title.textContent = cell.intention||'forming...'; cell.updateDisplay(); });
+  bind('ft','input', e => { cell.timespan = Math.max(1,parseInt(e.target.value)||1); cell.updateDisplay(); });
+  bind('fu','change', e => { cell.unit = e.target.value; cell.updateDisplay(); });
+  bind('fc','input', e => { cell.color = e.target.value; cell.updateDisplay(); });
+  bind('fs','input', e => { cell.size = parseInt(e.target.value); cell.updateDisplay(); });
 
-            remove() {
-                this.element.remove();
-                cells = cells.filter(c => c !== this);
-                connections = connections.filter(conn => 
-                    conn.from !== this && conn.to !== this
-                );
-            }
-        }
+  document.querySelectorAll('.state-btn').forEach(btn => btn.addEventListener('click', () => {
+    cell.setState(btn.dataset.s);
+    document.querySelectorAll('.state-btn').forEach(b=>b.classList.remove('sel'));
+    btn.classList.add('sel');
+    renderPanel(cell);
+  }));
 
-        // UI Functions
-        function openEditPanel(cell) {
-            document.getElementById('editPanel').classList.add('visible');
-            document.getElementById('cellIntention').value = cell.intention;
-            document.getElementById('cellTimespan').value = cell.timespan;
-            document.getElementById('cellTimespanUnit').value = cell.timespanUnit;
-            document.getElementById('cellColor').value = cell.color;
-            document.getElementById('cellSize').value = cell.size;
-            updateFodderList(cell);
-        }
+  document.querySelectorAll('.fodder-item').forEach(item => item.addEventListener('click', () => {
+    cell.fodder.splice(parseInt(item.dataset.i),1);
+    renderPanel(cell);
+  }));
 
-        function updateFodderList(cell) {
-            const list = document.getElementById('fodderList');
-            list.innerHTML = '';
-            cell.fodder.forEach((item, index) => {
-                const div = document.createElement('div');
-                div.className = 'fodder-item';
-                div.textContent = item;
-                div.addEventListener('click', () => {
-                    cell.fodder.splice(index, 1);
-                    updateFodderList(cell);
-                });
-                list.appendChild(div);
-            });
-        }
+  bind('badd','click', () => {
+    const v = document.getElementById('ff').value.trim();
+    if (v) { cell.fodder.push(v); cell.visit(); renderPanel(cell); }
+  });
+  bind('ff','keydown', e => { if(e.key==='Enter') document.getElementById('badd').click(); });
 
-        // Event Handlers
-        document.getElementById('addCell').addEventListener('click', () => {
-            const cell = new Cell(
-                window.innerWidth / 2 + (Math.random() - 0.5) * 200,
-                window.innerHeight / 2 + (Math.random() - 0.5) * 200
-            );
-            cells.push(cell);
-            cell.select();
-        });
+  bind('bnourish','click', () => { cell.visit(); renderPanel(cell); ribosome('charge'); });
 
-        document.getElementById('connectMode').addEventListener('click', (e) => {
-            connectMode = !connectMode;
-            e.target.classList.toggle('active');
-            document.getElementById('connectionIndicator').classList.toggle('visible');
-            if (!connectMode && connectingFrom) {
-                connectingFrom.element.style.boxShadow = '';
-                connectingFrom = null;
-            }
-        });
+  bind('bdissolve','click', () => {
+    cell.setState('spore');
+    renderPanel(cell);
+    setTimeout(() => { if(cell.state==='spore') { cell.remove(); selectCell(null); document.getElementById('panel').classList.remove('open'); }}, 25000);
+  });
+}
 
-        document.getElementById('clearConnections').addEventListener('click', () => {
-            connections = [];
-        });
+// ── Controls ───────────────────────────────────────────────────────────────
+document.getElementById('btn-new').addEventListener('click', () => {
+  const c = new Cell(
+    180 + Math.random() * (window.innerWidth - 450),
+    60 + Math.random() * (window.innerHeight - 120)
+  );
+  cells.push(c);
+  sounds.newCell();
+  selectCell(c);
+});
 
-        document.getElementById('closePanel').addEventListener('click', () => {
-            document.getElementById('editPanel').classList.remove('visible');
-            if (selectedCell) {
-                selectedCell.element.classList.remove('selected');
-                selectedCell = null;
-            }
-        });
+document.getElementById('btn-connect').addEventListener('click', e => {
+  connectMode = !connectMode;
+  e.target.classList.toggle('active-mode');
+  e.target.textContent = connectMode ? 'connecting...' : 'connect';
+  if (!connectMode && connectFrom) { connectFrom.el.style.outline=''; connectFrom=null; }
+});
 
-        document.getElementById('cellIntention').addEventListener('input', (e) => {
-            if (selectedCell) {
-                selectedCell.intention = e.target.value;
-                selectedCell.update();
-            }
-        });
+document.getElementById('btn-sound').addEventListener('click', e => {
+  soundOn = !soundOn;
+  e.target.textContent = soundOn ? '♪ on' : '♪ off';
+});
 
-        document.getElementById('cellTimespan').addEventListener('input', (e) => {
-            if (selectedCell) {
-                selectedCell.timespan = parseInt(e.target.value);
-            }
-        });
+document.getElementById('close-panel').addEventListener('click', () => {
+  document.getElementById('panel').classList.remove('open');
+  if (selected) { selected.el.classList.remove('selected'); selected = null; }
+});
 
-        document.getElementById('cellTimespanUnit').addEventListener('change', (e) => {
-            if (selectedCell) {
-                selectedCell.timespanUnit = e.target.value;
-            }
-        });
+document.body.addEventListener('click', e => {
+  if (e.target === document.body || e.target === fCanvas || e.target === mCanvas) {
+    if (selected) { selected.el.classList.remove('selected'); selected=null; }
+    document.getElementById('panel').classList.remove('open');
+  }
+});
 
-        document.getElementById('cellColor').addEventListener('input', (e) => {
-            if (selectedCell) {
-                selectedCell.color = e.target.value;
-                selectedCell.update();
-            }
-        });
+// ── Drag ───────────────────────────────────────────────────────────────────
+document.addEventListener('mousemove', e => {
+  if (dragging) dragging.move(e.clientX - dragOX, e.clientY - dragOY);
+});
+document.addEventListener('mouseup', () => { dragging = null; });
 
-        document.getElementById('cellSize').addEventListener('input', (e) => {
-            if (selectedCell) {
-                selectedCell.size = parseInt(e.target.value);
-                selectedCell.update();
-            }
-        });
+// ── Animate ────────────────────────────────────────────────────────────────
+let lastT = Date.now();
+function animate() {
+  const now = Date.now();
+  const dt = (now - lastT) / 1000;
+  lastT = now;
+  cells.forEach(c => c.decay(dt));
+  drawField();
+  drawTubes();
+  requestAnimationFrame(animate);
+}
+animate();
 
-        document.getElementById('addFodder').addEventListener('click', () => {
-            const input = document.getElementById('newFodder');
-            if (selectedCell && input.value.trim()) {
-                selectedCell.fodder.push(input.value.trim());
-                input.value = '';
-                updateFodderList(selectedCell);
-            }
-        });
+// ── Status cycling ─────────────────────────────────────────────────────────
+const statusMsgs = [
+  'inhabit like you live here',
+  'cells nourished by attention',
+  'charge builds toward threshold',
+  'the matrix holds what dissolves',
+  'thresholds make patterns legible',
+  'nothing lost — everything transforms',
+  'complexity coherent, not predictive',
+];
+let sIdx = 0;
+const statusEl = document.getElementById('status');
+statusEl.style.transition = 'opacity 0.5s';
+setInterval(() => {
+  sIdx = (sIdx+1) % statusMsgs.length;
+  statusEl.style.opacity = 0;
+  setTimeout(() => { statusEl.textContent = statusMsgs[sIdx]; statusEl.style.opacity = 1; }, 500);
+}, 11000);
 
-        document.getElementById('newFodder').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                document.getElementById('addFodder').click();
-            }
-        });
-
-        document.getElementById('deleteCell').addEventListener('click', () => {
-            if (selectedCell) {
-                selectedCell.remove();
-                document.getElementById('editPanel').classList.remove('visible');
-                selectedCell = null;
-            }
-        });
-
-        // Mouse handling
-        document.addEventListener('mousemove', (e) => {
-            if (draggedCell) {
-                draggedCell.x = e.clientX - draggedCell.dragOffsetX;
-                draggedCell.y = e.clientY - draggedCell.dragOffsetY;
-                draggedCell.update();
-            }
-        });
-
-        document.addEventListener('mouseup', () => {
-            draggedCell = null;
-        });
-
-        // Drawing loop
-        function drawConnections() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
-            connections.forEach(conn => {
-                const from = conn.from;
-                const to = conn.to;
-                
-                // Draw fiber
-                ctx.strokeStyle = '#4a7c4a44';
-                ctx.lineWidth = 2;
-                ctx.setLineDash([5, 5]);
-                ctx.beginPath();
-                ctx.moveTo(from.x, from.y);
-                ctx.lineTo(to.x, to.y);
-                ctx.stroke();
-                
-                // Draw communication particles
-                const distance = Math.hypot(to.x - from.x, to.y - from.y);
-                const progress = (Date.now() % 3000) / 3000;
-                const particleX = from.x + (to.x - from.x) * progress;
-                const particleY = from.y + (to.y - from.y) * progress;
-                
-                ctx.setLineDash([]);
-                ctx.fillStyle = from.color + 'aa';
-                ctx.beginPath();
-                ctx.arc(particleX, particleY, 4, 0, Math.PI * 2);
-                ctx.fill();
-            });
-        }
-
-        function animate() {
-            drawConnections();
-            requestAnimationFrame(animate);
-        }
-        animate();
-
-        // Initialize with one cell
-        const initialCell = new Cell(window.innerWidth / 2, window.innerHeight / 2);
-        cells.push(initialCell);
-    </script>
+// ── Seed ───────────────────────────────────────────────────────────────────
+const seed = new Cell(window.innerWidth * 0.4, window.innerHeight * 0.48);
+seed.intention = 'now';
+seed.timespan = 1; seed.unit = 'days';
+seed.charge = 28;
+seed.updateDisplay();
+cells.push(seed);
+</script>
 </body>
 </html>
