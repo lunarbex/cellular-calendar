@@ -496,6 +496,7 @@ class Cell {
     }
     this.syncCharge();
     this.checkThreshold();
+    autoSave();
   }
 
   setState(s) {
@@ -504,6 +505,7 @@ class Cell {
     this.el.querySelector('.state-dot').className = `state-dot ${s}`;
     if (s === 'spore') { sounds.dissolve(); ribosome('dissolve'); this.dissolveIntoMatrix(); }
     if (s === 'resurgent') { sounds.resurge(); ribosome('resurge'); }
+    autoSave();
   }
 
   syncCharge() {
@@ -568,6 +570,7 @@ class Cell {
     this.el.style.width = this.el.style.height = this.size + 'px';
     this.position();
     this.syncCharge();
+    autoSave();
   }
 
   handleConnect() {
@@ -602,6 +605,7 @@ class Cell {
     this.el.remove();
     cells = cells.filter(c => c !== this);
     tubes = tubes.filter(t => t.from !== this && t.to !== this);
+    autoSave();
   }
 }
 
@@ -806,6 +810,7 @@ document.getElementById('btn-new').addEventListener('click', () => {
   cells.push(c);
   sounds.newCell();
   selectCell(c);
+  autoSave();
 });
 
 document.getElementById('btn-connect').addEventListener('click', e => {
@@ -836,7 +841,10 @@ document.body.addEventListener('click', e => {
 document.addEventListener('mousemove', e => {
   if (dragging) dragging.move(e.clientX - dragOX, e.clientY - dragOY);
 });
-document.addEventListener('mouseup', () => { dragging = null; });
+document.addEventListener('mouseup', () => { 
+  if (dragging) autoSave();
+  dragging = null;
+});
 
 // ── Animate ────────────────────────────────────────────────────────────────
 let lastT = Date.now();
@@ -870,13 +878,118 @@ setInterval(() => {
   setTimeout(() => { statusEl.textContent = statusMsgs[sIdx]; statusEl.style.opacity = 1; }, 500);
 }, 11000);
 
-// ── Seed ───────────────────────────────────────────────────────────────────
-const seed = new Cell(window.innerWidth * 0.4, window.innerHeight * 0.48);
-seed.intention = 'now';
-seed.timespan = 1; seed.unit = 'days';
-seed.charge = 28;
-seed.updateDisplay();
-cells.push(seed);
+// ── Persistence ────────────────────────────────────────────────────────────
+function save() {
+  const data = {
+    cells: cells.map(c => ({
+      id: c.id,
+      x: c.x, y: c.y,
+      intention: c.intention,
+      timespan: c.timespan, unit: c.unit,
+      color: c.color, size: c.size,
+      fodder: c.fodder,
+      state: c.state,
+      charge: c.charge,
+      lastVisit: c.lastVisit,
+      born: c.born,
+      isThreshold: c.isThreshold,
+    })),
+    tubes: tubes.map(t => ({
+      fromId: t.from.id,
+      toId: t.to.id,
+      spontaneous: t.spontaneous,
+    })),
+    nextId,
+    savedAt: Date.now(),
+  };
+  localStorage.setItem('cellular-calendar', JSON.stringify(data));
+}
+
+function load() {
+  const stored = localStorage.getItem('cellular-calendar');
+  if (!stored) return false;
+  
+  try {
+    const data = JSON.parse(stored);
+    
+    // Restore nextId
+    nextId = data.nextId || 1;
+    
+    // Restore cells
+    data.cells.forEach(cd => {
+      const c = new Cell(cd.x, cd.y);
+      c.id = cd.id;
+      c.intention = cd.intention;
+      c.timespan = cd.timespan;
+      c.unit = cd.unit;
+      c.color = cd.color;
+      c.size = cd.size;
+      c.fodder = cd.fodder || [];
+      c.state = cd.state;
+      c.charge = cd.charge;
+      c.lastVisit = cd.lastVisit;
+      c.born = cd.born;
+      c.isThreshold = cd.isThreshold || false;
+      c.setState(c.state);
+      c.updateDisplay();
+      cells.push(c);
+    });
+    
+    // Restore microtubules
+    data.tubes.forEach(td => {
+      const from = cells.find(c => c.id === td.fromId);
+      const to = cells.find(c => c.id === td.toId);
+      if (from && to) {
+        tubes.push({
+          from, to,
+          spontaneous: td.spontaneous,
+          progress: 1,
+          pOffset: Math.random(),
+          strength: 0.5,
+        });
+      }
+    });
+    
+    return true;
+  } catch(e) {
+    console.error('Failed to load:', e);
+    return false;
+  }
+}
+
+// Auto-save on any change - debounced
+let saveTimeout = null;
+function autoSave() {
+  if (saveTimeout) clearTimeout(saveTimeout);
+  saveTimeout = setTimeout(save, 500);
+}
+
+// Hook save into all mutation points
+const origAddTube = addTube;
+addTube = function(...args) {
+  origAddTube(...args);
+  autoSave();
+};
+
+const origSelectCell = selectCell;
+selectCell = function(...args) {
+  origSelectCell(...args);
+  autoSave();
+};
+
+// ── Initialize ─────────────────────────────────────────────────────────────
+const loaded = load();
+
+if (!loaded) {
+  // Seed cell only if no saved data
+  const seed = new Cell(window.innerWidth * 0.4, window.innerHeight * 0.48);
+  seed.intention = 'now';
+  seed.timespan = 1; seed.unit = 'days';
+  seed.charge = 28;
+  seed.updateDisplay();
+  cells.push(seed);
+  save();
+}
 </script>
 </body>
 </html>
