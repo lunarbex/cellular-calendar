@@ -5,10 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>n o w</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=Inconsolata:wght@300;400&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=Inconsolata:wght@300;400&display=swap');
 
   :root {
-    --bg: #090c0a;
+    --bg: #0a0c0a;
     --membrane-active: #4a7c5a;
     --membrane-dormant: #2a3d2f;
     --membrane-spore: #1a2018;
@@ -18,6 +18,7 @@
     --text-dim: #5a7060;
     --panel: rgba(12, 18, 14, 0.96);
     --threshold: #d4f0a0;
+    --fodder-inner: rgba(168, 216, 120, 0.15);
   }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -35,111 +36,147 @@
   #field { position: absolute; inset: 0; z-index: 1; }
   #mt-canvas { position: absolute; inset: 0; z-index: 5; pointer-events: none; }
 
+  /* Wabi-sabi organic cells */
   .cell {
     position: absolute;
-    border-radius: 50%;
     cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    padding: 14px;
     z-index: 10;
-    font-family: 'IM Fell English', serif;
-    font-size: 11px;
-    line-height: 1.4;
     user-select: none;
+    filter: url(#organic);
   }
 
-  .cell-inner {
-    position: relative;
-    z-index: 2;
-    word-break: break-word;
-    max-width: 88%;
+  .cell-membrane {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+  }
+
+  .cell-content {
+    position: absolute;
+    inset: 12%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
     pointer-events: none;
+    overflow: hidden;
   }
 
   .cell-intention {
+    font-family: 'Crimson Text', serif;
+    font-size: 13px;
+    line-height: 1.3;
+    text-align: center;
     font-style: italic;
-    font-size: 11px;
-    display: block;
+    margin-bottom: 4px;
+    max-width: 90%;
+    word-wrap: break-word;
   }
 
   .cell-timespan {
     font-family: 'Inconsolata', monospace;
     font-size: 9px;
     color: var(--text-dim);
-    display: block;
-    margin-top: 3px;
-    letter-spacing: 0.3px;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+  }
+
+  .fodder-in-cell {
+    font-family: 'Crimson Text', serif;
+    font-size: 10px;
+    line-height: 1.4;
+    color: var(--text-dim);
+    text-align: center;
+    max-width: 85%;
+    max-height: 40%;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .fodder-item-inner {
+    background: var(--fodder-inner);
+    padding: 3px 6px;
+    margin: 2px;
+    border-radius: 3px;
+    display: inline-block;
+    font-size: 9px;
+    opacity: 0.7;
   }
 
   .state-dot {
     position: absolute;
-    top: 10px;
-    right: 10px;
-    width: 5px;
-    height: 5px;
+    top: 8px;
+    right: 8px;
+    width: 6px;
+    height: 6px;
     border-radius: 50%;
     pointer-events: none;
+    filter: blur(0.5px);
   }
-  .state-dot.active { background: var(--membrane-active); }
+  .state-dot.active { background: var(--membrane-active); box-shadow: 0 0 4px var(--membrane-active); }
   .state-dot.dormant { background: var(--membrane-dormant); }
-  .state-dot.spore { background: var(--membrane-spore); }
-  .state-dot.resurgent { background: var(--membrane-resurgent); animation: blink 1s ease-in-out infinite; }
+  .state-dot.spore { background: var(--membrane-spore); opacity: 0.3; }
+  .state-dot.resurgent { 
+    background: var(--membrane-resurgent); 
+    box-shadow: 0 0 6px var(--membrane-resurgent);
+    animation: blink 1.2s ease-in-out infinite; 
+  }
 
-  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
 
-  .cell[data-state="active"] {
-    border: 1.5px solid var(--membrane-active);
-    background: rgba(74,124,90,0.07);
+  /* State-based appearances */
+  .cell[data-state="active"] .cell-membrane {
+    background: radial-gradient(ellipse at 35% 40%, rgba(74,124,90,0.12), rgba(74,124,90,0.04));
   }
-  .cell[data-state="dormant"] {
-    border: 1px dashed var(--membrane-dormant);
-    background: rgba(42,61,47,0.04);
-    opacity: 0.55;
+  .cell[data-state="dormant"] .cell-membrane {
+    background: radial-gradient(ellipse at 35% 40%, rgba(42,61,47,0.06), rgba(42,61,47,0.02));
+    opacity: 0.6;
   }
-  .cell[data-state="spore"] {
-    border: 1px dotted var(--membrane-spore);
-    background: rgba(26,32,24,0.03);
-    opacity: 0.25;
-    filter: blur(0.8px);
+  .cell[data-state="spore"] .cell-membrane {
+    background: radial-gradient(ellipse at 35% 40%, rgba(26,32,24,0.04), rgba(26,32,24,0.01));
+    opacity: 0.3;
+    filter: blur(1.2px);
   }
-  .cell[data-state="resurgent"] {
-    border: 2px solid var(--membrane-resurgent);
-    background: rgba(143,188,106,0.1);
-    animation: resurgePulse 2.5s ease-in-out infinite;
+  .cell[data-state="resurgent"] .cell-membrane {
+    background: radial-gradient(ellipse at 35% 40%, rgba(143,188,106,0.18), rgba(143,188,106,0.08));
+    animation: resurgePulse 3s ease-in-out infinite;
   }
 
   @keyframes resurgePulse {
-    0%,100% { box-shadow: 0 0 30px rgba(143,188,106,0.25); }
-    50% { box-shadow: 0 0 60px rgba(143,188,106,0.45); }
+    0%,100% { filter: brightness(1) blur(0px); }
+    50% { filter: brightness(1.2) blur(0.3px); }
   }
 
-  .cell.threshold {
-    border-color: var(--threshold) !important;
-    box-shadow: 0 0 50px rgba(212,240,160,0.35) !important;
+  .cell.threshold .cell-membrane {
+    background: radial-gradient(ellipse at 35% 40%, rgba(212,240,160,0.25), rgba(212,240,160,0.1)) !important;
+    animation: thresholdPulse 2s ease-in-out infinite !important;
   }
 
-  .cell.selected {
-    outline: 1px solid rgba(200,216,192,0.25);
-    outline-offset: 8px;
+  @keyframes thresholdPulse {
+    0%,100% { transform: scale(1); filter: brightness(1.1); }
+    50% { transform: scale(1.04); filter: brightness(1.3); }
   }
 
-  .charge-arc {
+  .cell.selected .cell-membrane {
+    outline: 1px solid rgba(200,216,192,0.35);
+    outline-offset: 10px;
+  }
+
+  /* Charge arc - hand-drawn quality */
+  .charge-svg {
     position: absolute;
-    inset: -5px;
-    border-radius: 50%;
+    inset: -8px;
+    width: calc(100% + 16px);
+    height: calc(100% + 16px);
     pointer-events: none;
-    width: calc(100% + 10px);
-    height: calc(100% + 10px);
+    filter: url(#roughen);
   }
 
   /* Panel */
   #panel {
     position: fixed;
     right: 0; top: 0;
-    width: 290px;
+    width: 300px;
     height: 100vh;
     background: var(--panel);
     border-left: 1px solid rgba(74,124,90,0.12);
@@ -152,9 +189,9 @@
   #panel.open { display: block; }
 
   #panel h2 {
-    font-family: 'IM Fell English', serif;
-    font-size: 14px;
-    font-style: italic;
+    font-family: 'Crimson Text', serif;
+    font-size: 16px;
+    font-weight: 600;
     color: var(--text);
     margin-bottom: 18px;
     padding-bottom: 10px;
@@ -205,24 +242,23 @@
   }
   .state-btn:hover { border-color: rgba(74,124,90,0.45); color: var(--text); }
   .state-btn.sel { background: rgba(74,124,90,0.12); border-color: var(--membrane-active); color: var(--text); }
-  .state-btn[data-s="resurgent"].sel { border-color: var(--membrane-resurgent); }
-  .state-btn[data-s="dormant"].sel { border-color: var(--membrane-dormant); }
-  .state-btn[data-s="spore"].sel { border-color: #3a4838; }
 
   .charge-bar-outer { width:100%; height:2px; background:rgba(74,124,90,0.1); border-radius:2px; margin-top:5px; overflow:hidden; }
   .charge-bar-inner { height:100%; background: var(--charge); border-radius:2px; transition: width 0.5s ease; }
 
   .fodder-item {
-    padding: 5px 8px;
-    margin: 3px 0;
+    padding: 6px 9px;
+    margin: 4px 0;
     border-left: 1px solid rgba(74,124,90,0.25);
     font-size: 11px;
+    font-family: 'Crimson Text', serif;
     color: var(--text-dim);
     cursor: pointer;
     font-style: italic;
     transition: all 0.15s;
+    line-height: 1.5;
   }
-  .fodder-item:hover { color: var(--text); border-left-color: var(--membrane-active); }
+  .fodder-item:hover { color: var(--text); border-left-color: var(--membrane-active); background: rgba(74,124,90,0.05); }
 
   .fodder-add { display: flex; gap: 5px; margin-top: 6px; }
   .fodder-add input { flex: 1; }
@@ -254,7 +290,7 @@
   #close-panel:hover { color: var(--text); }
 
   #topbar {
-    position: fixed; top: 0; left: 0; right: 290px;
+    position: fixed; top: 0; left: 0; right: 300px;
     height: 46px; z-index: 50;
     display: flex; align-items: center;
     padding: 0 18px; gap: 8px;
@@ -262,9 +298,9 @@
   }
 
   #title {
-    font-family: 'IM Fell English', serif;
-    font-size: 13px; font-style: italic;
-    color: var(--text-dim); letter-spacing: 5px;
+    font-family: 'Crimson Text', serif;
+    font-size: 14px; font-weight: 600; font-style: italic;
+    color: var(--text-dim); letter-spacing: 6px;
     margin-right: 10px;
   }
 
@@ -274,11 +310,13 @@
     z-index: 50; pointer-events: none;
     letter-spacing: 0.3px;
     transition: opacity 0.5s;
+    font-family: 'Crimson Text', serif;
+    font-style: italic;
   }
 
   #threshold-flash {
     position: fixed; inset: 0;
-    background: radial-gradient(ellipse at center, rgba(212,240,160,0.07) 0%, transparent 65%);
+    background: radial-gradient(ellipse at center, rgba(212,240,160,0.08) 0%, transparent 65%);
     pointer-events: none; z-index: 200;
     opacity: 0; transition: opacity 0.4s ease;
   }
@@ -289,21 +327,22 @@
     left: 50%; transform: translateX(-50%);
     background: var(--panel);
     border: 1px solid rgba(143,188,106,0.25);
-    padding: 9px 15px;
-    font-family: 'IM Fell English', serif;
+    padding: 10px 16px;
+    font-family: 'Crimson Text', serif;
     font-style: italic; font-size: 12px;
     color: var(--membrane-resurgent);
-    z-index: 150; max-width: 420px;
+    z-index: 150; max-width: 480px;
     text-align: center;
     opacity: 0; transition: opacity 0.6s ease;
     pointer-events: none; border-radius: 2px;
+    line-height: 1.6;
   }
   .ribosome-hint.visible { opacity: 1; }
 
   #panel-empty {
     color: var(--text-dim);
     font-style: italic;
-    font-family: 'IM Fell English', serif;
+    font-family: 'Crimson Text', serif;
     font-size: 13px; text-align: center;
     margin-top: 50px; line-height: 2;
   }
@@ -319,9 +358,26 @@
   ::-webkit-scrollbar { width: 3px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: rgba(74,124,90,0.25); border-radius:2px; }
+
+  /* SVG filters for organic quality */
+  svg.filters { position: absolute; width: 0; height: 0; }
 </style>
 </head>
 <body>
+
+<!-- SVG filters for wabi-sabi aesthetic -->
+<svg class="filters">
+  <defs>
+    <filter id="organic">
+      <feTurbulence type="fractalNoise" baseFrequency="0.4" numOctaves="2" seed="2"/>
+      <feDisplacementMap in="SourceGraphic" scale="1.5"/>
+    </filter>
+    <filter id="roughen">
+      <feTurbulence type="fractalNoise" baseFrequency="1.2" numOctaves="1" result="noise"/>
+      <feDisplacementMap in="SourceGraphic" in2="noise" scale="0.8" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+  </defs>
+</svg>
 
 <canvas id="field"></canvas>
 <canvas id="mt-canvas"></canvas>
@@ -394,8 +450,8 @@ window.addEventListener('resize', resize);
 
 // ── State ──────────────────────────────────────────────────────────────────
 let cells = [];
-let tubes = []; // microtubules
-let compost = []; // dissolved cell particles
+let tubes = [];
+let compost = [];
 let selected = null;
 let connectMode = false;
 let connectFrom = null;
@@ -410,13 +466,13 @@ const CHARGE_PER_VISIT = 9;
 const DORMANT_IDLE_S = 90;
 
 const RIBOSOME = {
-  threshold: 'threshold dynamics — where small perturbations cascade into new order (bifurcation theory)',
-  connection: 'coupled oscillators — when two rhythms entrain, each changes the other (Huygens, 1665)',
-  resurge:    'emergence from dormancy — the system retains pattern through state change (attractor dynamics)',
-  dissolve:   'dissipation into field — structure releasing back into medium (open systems thermodynamics)',
-  charge:     'resonance fields — accumulated potential seeking discharge across proximity',
-  compost:    'endosymbiotic nutrient cycling — dissolved cells feed living ones',
-  default:    'you are inhabiting a living system — it is learning your rhythms',
+  threshold: 'threshold dynamics — perturbations cascade into new order (bifurcation)',
+  connection: 'coupled oscillators — rhythms entrain and transform each other',
+  resurge:    'emergence from dormancy — pattern persists through phase transition',
+  dissolve:   'dissolution into matrix — structure releases, medium enriches',
+  charge:     'resonance fields — potential accumulates, seeks discharge',
+  compost:    'nutrient cycling — what dissolves becomes available to the living',
+  default:    'you are inhabiting a living system',
 };
 
 // ── Cell ───────────────────────────────────────────────────────────────────
@@ -427,7 +483,7 @@ class Cell {
     this.intention = '';
     this.timespan = 7; this.unit = 'days';
     this.color = '#4a7c5a';
-    this.size = 110;
+    this.size = 120;
     this.fodder = [];
     this.state = 'active';
     this.charge = 12;
@@ -441,21 +497,42 @@ class Cell {
     const el = document.createElement('div');
     el.className = 'cell';
     el.dataset.state = 'active';
+    el.dataset.id = this.id;
     this.position(el);
 
+    // Create organic membrane with hand-drawn quality
+    const irregularity = this.generateIrregularPath();
+    
     el.innerHTML = `
-      <div class="state-dot active"></div>
-      <svg class="charge-arc" viewBox="0 0 110 110" style="position:absolute;inset:-5px;width:calc(100% + 10px);height:calc(100% + 10px);pointer-events:none;">
-        <circle class="carc" cx="55" cy="55" r="52"
-          fill="none" stroke="${this.color}" stroke-width="0.9"
-          stroke-dasharray="0 327" stroke-linecap="round"
-          transform="rotate(-90 55 55)"
-          style="transition:stroke-dasharray 0.7s ease;opacity:0.5"/>
+      <svg class="cell-membrane" viewBox="0 0 100 100">
+        <defs>
+          <radialGradient id="grad-${this.id}" cx="35%" cy="40%">
+            <stop offset="0%" stop-color="${this.color}" stop-opacity="0.15"/>
+            <stop offset="100%" stop-color="${this.color}" stop-opacity="0.05"/>
+          </radialGradient>
+        </defs>
+        <path class="membrane-path" d="${irregularity}" 
+          fill="url(#grad-${this.id})" 
+          stroke="${this.color}" 
+          stroke-width="0.8" 
+          opacity="0.7"
+          filter="url(#roughen)"/>
       </svg>
-      <div class="cell-inner">
-        <span class="cell-intention">forming...</span>
-        <span class="cell-timespan">7 days</span>
-      </div>`;
+      <svg class="charge-svg" viewBox="0 0 116 116">
+        <circle class="carc" cx="58" cy="58" r="54"
+          fill="none" stroke="${this.color}" stroke-width="0.6"
+          stroke-dasharray="0 340" stroke-linecap="round"
+          transform="rotate(-90 58 58)"
+          opacity="0.4"
+          filter="url(#roughen)"/>
+      </svg>
+      <div class="state-dot active"></div>
+      <div class="cell-content">
+        <div class="cell-intention">forming...</div>
+        <div class="cell-timespan">7 days</div>
+        <div class="fodder-in-cell"></div>
+      </div>
+    `;
 
     document.body.appendChild(el);
 
@@ -472,6 +549,24 @@ class Cell {
     });
 
     return el;
+  }
+
+  generateIrregularPath() {
+    // Generate organic, imperfect circle path
+    const points = 60;
+    const baseRadius = 45;
+    let path = 'M ';
+    
+    for (let i = 0; i <= points; i++) {
+      const angle = (i / points) * Math.PI * 2;
+      const variation = (Math.sin(angle * 3) * 0.7 + Math.sin(angle * 5) * 0.4 + Math.sin(angle * 7) * 0.3);
+      const r = baseRadius + variation;
+      const x = 50 + Math.cos(angle) * r;
+      const y = 50 + Math.sin(angle) * r;
+      path += i === 0 ? `${x},${y} ` : `L ${x},${y} `;
+    }
+    path += 'Z';
+    return path;
   }
 
   position(el) {
@@ -509,16 +604,13 @@ class Cell {
   }
 
   syncCharge() {
-    const circ = 2 * Math.PI * 52;
+    const circ = 2 * Math.PI * 54;
     const arc = this.el.querySelector('.carc');
     if (arc) {
       const dash = (this.charge/100) * circ;
       arc.setAttribute('stroke-dasharray', `${dash} ${circ}`);
       arc.setAttribute('stroke', this.charge > 65 ? '#a8d878' : this.color);
-    }
-    if (this.state === 'active') {
-      const glow = 0.04 + this.charge * 0.0015;
-      this.el.style.boxShadow = `0 0 ${10 + this.charge*0.25}px rgba(74,124,90,${glow}), inset 0 0 ${20 + this.charge*0.2}px rgba(74,124,90,${glow*0.4})`;
+      arc.setAttribute('opacity', this.charge > 50 ? 0.6 : 0.4);
     }
   }
 
@@ -538,7 +630,6 @@ class Cell {
   }
 
   seekConnection() {
-    // Find nearest cell by weighted proximity+charge
     let best = null, bestScore = Infinity;
     cells.forEach(c => {
       if (c === this || c.state === 'spore') return;
@@ -550,13 +641,13 @@ class Cell {
   }
 
   dissolveIntoMatrix() {
-    for (let i = 0; i < 14; i++) {
+    for (let i = 0; i < 16; i++) {
       compost.push({
-        x: this.x + (Math.random()-0.5)*80,
-        y: this.y + (Math.random()-0.5)*80,
-        r: 15 + Math.random()*50,
+        x: this.x + (Math.random()-0.5)*90,
+        y: this.y + (Math.random()-0.5)*90,
+        r: 18 + Math.random()*55,
         born: Date.now(),
-        life: 10000 + Math.random()*15000,
+        life: 12000 + Math.random()*18000,
       });
     }
     ribosome('compost');
@@ -565,11 +656,37 @@ class Cell {
   updateDisplay() {
     const intent = this.el.querySelector('.cell-intention');
     const ts = this.el.querySelector('.cell-timespan');
+    const fodderContainer = this.el.querySelector('.fodder-in-cell');
+    
     if (intent) intent.textContent = this.intention || 'forming...';
     if (ts) ts.textContent = `${this.timespan} ${this.unit}`;
+    
+    // Show fodder inside cell (first 3 items)
+    if (fodderContainer) {
+      const visibleFodder = this.fodder.slice(0, 3);
+      if (visibleFodder.length > 0) {
+        fodderContainer.innerHTML = visibleFodder.map(f => 
+          `<span class="fodder-item-inner">${f.length > 20 ? f.slice(0,18)+'...' : f}</span>`
+        ).join('');
+      } else {
+        fodderContainer.innerHTML = '';
+      }
+    }
+    
     this.el.style.width = this.el.style.height = this.size + 'px';
     this.position();
     this.syncCharge();
+    
+    // Update gradients
+    const grad = this.el.querySelector(`#grad-${this.id}`);
+    if (grad) {
+      grad.querySelectorAll('stop').forEach(stop => {
+        stop.setAttribute('stop-color', this.color);
+      });
+    }
+    const path = this.el.querySelector('.membrane-path');
+    if (path) path.setAttribute('stroke', this.color);
+    
     autoSave();
   }
 
@@ -609,73 +726,98 @@ class Cell {
   }
 }
 
-// ── Microtubules ───────────────────────────────────────────────────────────
+// ── Microtubules (connective tissue) ───────────────────────────────────────
 function addTube(from, to, spontaneous) {
   if (tubes.find(t => (t.from===from&&t.to===to)||(t.from===to&&t.to===from))) return;
-  tubes.push({ from, to, progress: 0, spontaneous, pOffset: Math.random(), strength: 0.25 });
+  tubes.push({ from, to, progress: 0, spontaneous, pOffset: Math.random(), strength: 0.25, tension: 0 });
 }
 
 function drawTubes() {
   mCtx.clearRect(0, 0, mCanvas.width, mCanvas.height);
   const now = Date.now();
+  
   tubes.forEach(t => {
     t.progress = Math.min(1, t.progress + 0.006);
-    t.strength = Math.min(0.55, t.strength + 0.0008);
+    t.strength = Math.min(0.6, t.strength + 0.0008);
+    
     const {from, to} = t;
     const dx = to.x - from.x, dy = to.y - from.y;
+    const dist = Math.hypot(dx, dy);
+    
+    // Tension based on charge difference (mechanotransduction)
+    const chargeDiff = Math.abs(from.charge - to.charge);
+    t.tension = chargeDiff / 100;
+    
     const endX = from.x + dx * t.progress;
     const endY = from.y + dy * t.progress;
-    const mx = (from.x+endX)/2 + dy*0.07;
-    const my = (from.y+endY)/2 - dx*0.07;
+    
+    // Organic curve with tension influence
+    const curvature = 0.06 + t.tension * 0.04;
+    const mx = (from.x+endX)/2 + dy*curvature;
+    const my = (from.y+endY)/2 - dx*curvature;
 
+    // Draw fascial fiber with organic quality
     mCtx.beginPath();
     mCtx.moveTo(from.x, from.y);
     mCtx.quadraticCurveTo(mx, my, endX, endY);
-    const alpha = t.spontaneous ? t.strength * 0.6 : t.strength;
-    mCtx.strokeStyle = `rgba(100,160,90,${alpha * 0.38})`;
-    mCtx.lineWidth = t.spontaneous ? 0.7 : 1.1;
-    mCtx.setLineDash(t.spontaneous ? [3,7] : []);
+    
+    const alpha = t.spontaneous ? t.strength * 0.65 : t.strength;
+    const lineWidth = t.spontaneous ? 0.6 + t.tension * 0.4 : 1.0 + t.tension * 0.5;
+    
+    mCtx.strokeStyle = `rgba(100,160,90,${alpha * 0.4})`;
+    mCtx.lineWidth = lineWidth;
+    mCtx.setLineDash(t.spontaneous ? [3,8] : []);
     mCtx.stroke();
     mCtx.setLineDash([]);
 
-    // Particle
+    // Communication particles (instantaneous signal transmission)
     if (t.progress >= 1) {
-      const p = ((now/3200) + t.pOffset) % 1;
-      // Bezier point
-      const bx = (1-p)*(1-p)*from.x + 2*(1-p)*p*mx + p*p*to.x;
-      const by = (1-p)*(1-p)*from.y + 2*(1-p)*p*my + p*p*to.y;
-      mCtx.beginPath();
-      mCtx.arc(bx, by, 1.8, 0, Math.PI*2);
-      mCtx.fillStyle = `rgba(168,216,120,${0.35 + Math.sin(p*Math.PI)*0.3})`;
-      mCtx.fill();
+      const particleCount = 1 + Math.floor(t.tension * 2);
+      for (let i = 0; i < particleCount; i++) {
+        const offset = i / particleCount;
+        const p = ((now/3200) + t.pOffset + offset) % 1;
+        const bx = (1-p)*(1-p)*from.x + 2*(1-p)*p*mx + p*p*to.x;
+        const by = (1-p)*(1-p)*from.y + 2*(1-p)*p*my + p*p*to.y;
+        mCtx.beginPath();
+        mCtx.arc(bx, by, 1.5 + t.tension, 0, Math.PI*2);
+        mCtx.fillStyle = `rgba(168,216,120,${0.3 + Math.sin(p*Math.PI)*0.3 + t.tension*0.2})`;
+        mCtx.fill();
+      }
     }
   });
 }
 
-// ── Field ──────────────────────────────────────────────────────────────────
+// ── Field (matrix ground substance) ────────────────────────────────────────
 function drawField() {
   fCtx.clearRect(0, 0, fCanvas.width, fCanvas.height);
 
-  // Subtle grid
-  fCtx.strokeStyle = 'rgba(35,52,38,0.1)';
-  fCtx.lineWidth = 0.4;
-  const sp = 90;
-  for (let x = 0; x < fCanvas.width; x += sp) {
-    fCtx.beginPath(); fCtx.moveTo(x,0); fCtx.lineTo(x,fCanvas.height); fCtx.stroke();
+  // Organic grid - irregular spacing
+  fCtx.strokeStyle = 'rgba(35,52,38,0.08)';
+  fCtx.lineWidth = 0.3;
+  const baseSpacing = 95;
+  for (let x = 0; x < fCanvas.width; x += baseSpacing + Math.sin(x*0.01)*8) {
+    fCtx.beginPath();
+    fCtx.moveTo(x,0);
+    fCtx.lineTo(x + Math.sin(x*0.02)*10, fCanvas.height);
+    fCtx.stroke();
   }
-  for (let y = 0; y < fCanvas.height; y += sp) {
-    fCtx.beginPath(); fCtx.moveTo(0,y); fCtx.lineTo(fCanvas.width,y); fCtx.stroke();
+  for (let y = 0; y < fCanvas.height; y += baseSpacing + Math.cos(y*0.01)*8) {
+    fCtx.beginPath();
+    fCtx.moveTo(0,y);
+    fCtx.lineTo(fCanvas.width, y + Math.cos(y*0.02)*10);
+    fCtx.stroke();
   }
 
-  // Compost glow
+  // Compost / dissolved nutrients
   const now = Date.now();
   compost.forEach((p, i) => {
     const age = (now - p.born) / p.life;
     if (age > 1) { compost.splice(i, 1); return; }
-    const alpha = Math.sin(age * Math.PI) * 0.055;
-    const r = p.r * (1 + age * 1.8);
+    const alpha = Math.sin(age * Math.PI) * 0.06;
+    const r = p.r * (1 + age * 2.2);
     const g = fCtx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r);
-    g.addColorStop(0, `rgba(80,145,80,${alpha})`);
+    g.addColorStop(0, `rgba(85,150,85,${alpha})`);
+    g.addColorStop(0.7, `rgba(80,140,80,${alpha*0.3})`);
     g.addColorStop(1, 'transparent');
     fCtx.beginPath(); fCtx.arc(p.x, p.y, r, 0, Math.PI*2);
     fCtx.fillStyle = g; fCtx.fill();
@@ -686,7 +828,7 @@ function drawField() {
 function flashField() {
   const el = document.getElementById('threshold-flash');
   el.classList.add('flash');
-  setTimeout(() => el.classList.remove('flash'), 60);
+  setTimeout(() => el.classList.remove('flash'), 70);
 }
 
 function ribosome(key) {
@@ -694,7 +836,81 @@ function ribosome(key) {
   el.textContent = RIBOSOME[key] || RIBOSOME.default;
   el.classList.add('visible');
   if (ribTimer) clearTimeout(ribTimer);
-  ribTimer = setTimeout(() => el.classList.remove('visible'), 6000);
+  ribTimer = setTimeout(() => el.classList.remove('visible'), 6500);
+}
+
+// ── Persistence ────────────────────────────────────────────────────────────
+function save() {
+  const data = {
+    cells: cells.map(c => ({
+      id: c.id, x: c.x, y: c.y,
+      intention: c.intention,
+      timespan: c.timespan, unit: c.unit,
+      color: c.color, size: c.size,
+      fodder: c.fodder,
+      state: c.state, charge: c.charge,
+      lastVisit: c.lastVisit, born: c.born,
+      isThreshold: c.isThreshold,
+    })),
+    tubes: tubes.map(t => ({
+      fromId: t.from.id, toId: t.to.id,
+      spontaneous: t.spontaneous,
+    })),
+    nextId, savedAt: Date.now(),
+  };
+  localStorage.setItem('cellular-calendar', JSON.stringify(data));
+}
+
+function load() {
+  const stored = localStorage.getItem('cellular-calendar');
+  if (!stored) return false;
+  
+  try {
+    const data = JSON.parse(stored);
+    nextId = data.nextId || 1;
+    
+    data.cells.forEach(cd => {
+      const c = new Cell(cd.x, cd.y);
+      c.id = cd.id;
+      c.intention = cd.intention;
+      c.timespan = cd.timespan;
+      c.unit = cd.unit;
+      c.color = cd.color;
+      c.size = cd.size;
+      c.fodder = cd.fodder || [];
+      c.state = cd.state;
+      c.charge = cd.charge;
+      c.lastVisit = cd.lastVisit;
+      c.born = cd.born;
+      c.isThreshold = cd.isThreshold || false;
+      c.setState(c.state);
+      c.updateDisplay();
+      cells.push(c);
+    });
+    
+    data.tubes.forEach(td => {
+      const from = cells.find(c => c.id === td.fromId);
+      const to = cells.find(c => c.id === td.toId);
+      if (from && to) {
+        tubes.push({
+          from, to, spontaneous: td.spontaneous,
+          progress: 1, pOffset: Math.random(),
+          strength: 0.5, tension: 0,
+        });
+      }
+    });
+    
+    return true;
+  } catch(e) {
+    console.error('Load failed:', e);
+    return false;
+  }
+}
+
+let saveTimeout = null;
+function autoSave() {
+  if (saveTimeout) clearTimeout(saveTimeout);
+  saveTimeout = setTimeout(save, 500);
 }
 
 // ── Select / Panel ─────────────────────────────────────────────────────────
@@ -705,6 +921,7 @@ function selectCell(cell) {
   cell.el.classList.add('selected');
   document.getElementById('panel').classList.add('open');
   renderPanel(cell);
+  autoSave();
 }
 
 function renderPanel(cell) {
@@ -746,13 +963,13 @@ function renderPanel(cell) {
     <input type="color" id="fc" value="${cell.color}">
 
     <span class="field-label">size</span>
-    <input type="range" id="fs" min="70" max="220" value="${cell.size}">
+    <input type="range" id="fs" min="80" max="240" value="${cell.size}">
 
     <span class="field-label">charge &nbsp;<span style="color:var(--charge);font-size:10px">${cp}%</span></span>
     <div class="charge-bar-outer"><div class="charge-bar-inner" style="width:${cp}%"></div></div>
 
     <hr class="div">
-    <span class="field-label">fodder</span>
+    <span class="field-label">fodder (visible inside cell: ${Math.min(cell.fodder.length, 3)} of ${cell.fodder.length})</span>
     <div id="flist">${fHTML}</div>
     <div class="fodder-add">
       <input type="text" id="ff" placeholder="add nourishment...">
@@ -783,12 +1000,13 @@ function renderPanel(cell) {
 
   document.querySelectorAll('.fodder-item').forEach(item => item.addEventListener('click', () => {
     cell.fodder.splice(parseInt(item.dataset.i),1);
+    cell.updateDisplay();
     renderPanel(cell);
   }));
 
   bind('badd','click', () => {
     const v = document.getElementById('ff').value.trim();
-    if (v) { cell.fodder.push(v); cell.visit(); renderPanel(cell); }
+    if (v) { cell.fodder.push(v); cell.visit(); cell.updateDisplay(); renderPanel(cell); }
   });
   bind('ff','keydown', e => { if(e.key==='Enter') document.getElementById('badd').click(); });
 
@@ -804,8 +1022,8 @@ function renderPanel(cell) {
 // ── Controls ───────────────────────────────────────────────────────────────
 document.getElementById('btn-new').addEventListener('click', () => {
   const c = new Cell(
-    180 + Math.random() * (window.innerWidth - 450),
-    60 + Math.random() * (window.innerHeight - 120)
+    200 + Math.random() * (window.innerWidth - 500),
+    80 + Math.random() * (window.innerHeight - 160)
   );
   cells.push(c);
   sounds.newCell();
@@ -846,7 +1064,7 @@ document.addEventListener('mouseup', () => {
   dragging = null;
 });
 
-// ── Animate ────────────────────────────────────────────────────────────────
+// ── Animation ──────────────────────────────────────────────────────────────
 let lastT = Date.now();
 function animate() {
   const now = Date.now();
@@ -867,7 +1085,8 @@ const statusMsgs = [
   'the matrix holds what dissolves',
   'thresholds make patterns legible',
   'nothing lost — everything transforms',
-  'complexity coherent, not predictive',
+  'connective tissue carries light and tension',
+  'ask through resonance, not declaration',
 ];
 let sIdx = 0;
 const statusEl = document.getElementById('status');
@@ -876,112 +1095,12 @@ setInterval(() => {
   sIdx = (sIdx+1) % statusMsgs.length;
   statusEl.style.opacity = 0;
   setTimeout(() => { statusEl.textContent = statusMsgs[sIdx]; statusEl.style.opacity = 1; }, 500);
-}, 11000);
-
-// ── Persistence ────────────────────────────────────────────────────────────
-function save() {
-  const data = {
-    cells: cells.map(c => ({
-      id: c.id,
-      x: c.x, y: c.y,
-      intention: c.intention,
-      timespan: c.timespan, unit: c.unit,
-      color: c.color, size: c.size,
-      fodder: c.fodder,
-      state: c.state,
-      charge: c.charge,
-      lastVisit: c.lastVisit,
-      born: c.born,
-      isThreshold: c.isThreshold,
-    })),
-    tubes: tubes.map(t => ({
-      fromId: t.from.id,
-      toId: t.to.id,
-      spontaneous: t.spontaneous,
-    })),
-    nextId,
-    savedAt: Date.now(),
-  };
-  localStorage.setItem('cellular-calendar', JSON.stringify(data));
-}
-
-function load() {
-  const stored = localStorage.getItem('cellular-calendar');
-  if (!stored) return false;
-  
-  try {
-    const data = JSON.parse(stored);
-    
-    // Restore nextId
-    nextId = data.nextId || 1;
-    
-    // Restore cells
-    data.cells.forEach(cd => {
-      const c = new Cell(cd.x, cd.y);
-      c.id = cd.id;
-      c.intention = cd.intention;
-      c.timespan = cd.timespan;
-      c.unit = cd.unit;
-      c.color = cd.color;
-      c.size = cd.size;
-      c.fodder = cd.fodder || [];
-      c.state = cd.state;
-      c.charge = cd.charge;
-      c.lastVisit = cd.lastVisit;
-      c.born = cd.born;
-      c.isThreshold = cd.isThreshold || false;
-      c.setState(c.state);
-      c.updateDisplay();
-      cells.push(c);
-    });
-    
-    // Restore microtubules
-    data.tubes.forEach(td => {
-      const from = cells.find(c => c.id === td.fromId);
-      const to = cells.find(c => c.id === td.toId);
-      if (from && to) {
-        tubes.push({
-          from, to,
-          spontaneous: td.spontaneous,
-          progress: 1,
-          pOffset: Math.random(),
-          strength: 0.5,
-        });
-      }
-    });
-    
-    return true;
-  } catch(e) {
-    console.error('Failed to load:', e);
-    return false;
-  }
-}
-
-// Auto-save on any change - debounced
-let saveTimeout = null;
-function autoSave() {
-  if (saveTimeout) clearTimeout(saveTimeout);
-  saveTimeout = setTimeout(save, 500);
-}
-
-// Hook save into all mutation points
-const origAddTube = addTube;
-addTube = function(...args) {
-  origAddTube(...args);
-  autoSave();
-};
-
-const origSelectCell = selectCell;
-selectCell = function(...args) {
-  origSelectCell(...args);
-  autoSave();
-};
+}, 13000);
 
 // ── Initialize ─────────────────────────────────────────────────────────────
 const loaded = load();
 
 if (!loaded) {
-  // Seed cell only if no saved data
   const seed = new Cell(window.innerWidth * 0.4, window.innerHeight * 0.48);
   seed.intention = 'now';
   seed.timespan = 1; seed.unit = 'days';
